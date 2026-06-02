@@ -34,4 +34,7 @@ public class Exam {
 
     @Column(nullable = false)
     private Long difficulty;
+
+    @Column(name = "level")
+    private String level;
 }

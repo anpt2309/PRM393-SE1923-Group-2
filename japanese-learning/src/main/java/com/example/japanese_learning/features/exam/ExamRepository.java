@@ -8,12 +8,16 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 @Repository
 public interface ExamRepository extends JpaRepository<Exam, Long> {
 
+    // like %:title%; =:
     @Query("select e from Exam e where " +
-            "(:title is null or e.title =:title) " +
-            "and (:ddd is null or e.difficulty =:ddd)")
-    Page<Exam> getExam(@Param("title") String title,  Integer ddd, Pageable pageable);
+            "(:level is null or e.level in :level) " +
+            "and (:difficulty is null or e.difficulty in :difficulty)")
+    Page<Exam> getExam(@Param("level") List<String> level,
+                       @Param("difficulty")List<Long> difficulty, Pageable pageable);
 }
 
