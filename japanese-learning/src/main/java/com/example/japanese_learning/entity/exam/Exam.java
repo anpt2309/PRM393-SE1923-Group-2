@@ -37,4 +37,7 @@ public class Exam {
 
     @Column(name = "level")
     private String level;
+
+    @Column(name = "price")
+    private Double price;
 }
