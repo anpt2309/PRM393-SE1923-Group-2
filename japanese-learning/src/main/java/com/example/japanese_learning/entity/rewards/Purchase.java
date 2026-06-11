@@ -22,7 +22,7 @@ public class Purchase {
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id")
+    @JoinColumn(name = "exam_id")
     private Exam examID; // Ánh xạ tới bảng Exams dựa trên id
 
     @Column(name = "purchased_at", insertable = false, updatable = false)
