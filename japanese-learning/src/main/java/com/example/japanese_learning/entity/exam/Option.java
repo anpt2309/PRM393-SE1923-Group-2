@@ -6,7 +6,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "options") // Chú ý: 'options' có thể là reserved word trong vài CSDL, nhưng vẫn map đúng yêu cầu.
+@Table(name = "options")
 public class Option {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

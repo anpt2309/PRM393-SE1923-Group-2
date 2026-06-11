@@ -2,14 +2,16 @@ package com.example.japanese_learning.entity.exam;
 import com.example.japanese_learning.entity.account.User;
 import com.example.japanese_learning.enums.AttemptStatus;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
 @Getter
 @Setter
 @Entity
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 @Table(name = "exam_attempts")
 public class ExamAttempt {
     @Id

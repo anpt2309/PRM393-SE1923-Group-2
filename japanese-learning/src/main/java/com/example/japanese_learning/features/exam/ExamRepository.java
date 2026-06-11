@@ -14,10 +14,10 @@ import java.util.List;
 public interface ExamRepository extends JpaRepository<Exam, Long> {
 
     // like %:title%; =:
-    @Query("select e from Exam e where " +
-            "(:level is null or e.level in :level) " +
-            "and (:difficulty is null or e.difficulty in :difficulty)")
-    Page<Exam> getExam(@Param("level") List<String> level,
-                       @Param("difficulty")List<Long> difficulty, Pageable pageable);
+    @Query("select e from Exam e " +
+            "where (:levelExam is null or e.level in :levelExam) " +
+            "and (:difficultyExam is null or e.difficulty in :difficultyExam)")
+    Page<Exam> getExam( @Param("levelExam") List<String> levelExam,
+                        @Param("difficultyExam") List<Integer> difficultyExam, Pageable pageable);
 }
 

@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
         name = "student_responses",
         uniqueConstraints = @UniqueConstraint(columnNames = {"attempt_id", "question_id"})
 )
-public class StudentResponse {
+public class StudentAnswer {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
