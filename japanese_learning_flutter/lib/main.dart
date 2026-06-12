@@ -7,7 +7,7 @@ import 'views/account/settings_screen.dart';
 import 'views/account/news_screen.dart';
 import 'views/account/sentence_screen.dart';
 import 'views/flashcard/create_flashcard_screen.dart';
-import 'views/flashcard/my_sets_screen.dart';
+import 'views/payment/checkout_screen.dart';
 
 void main() async {
   // Kích hoạt Flutter sẵn sàng trước khi chạy lệnh ẩn (async)
@@ -33,7 +33,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         useMaterial3: true,
       ),
-      home: const MySetsScreen(), // Đặt màn hình Đăng nhập xuất hiện đầu tiên khi mở app
+      home: const CheckoutScreen(), // Đặt màn hình Đăng nhập xuất hiện đầu tiên khi mở app
     );
   }
 }
