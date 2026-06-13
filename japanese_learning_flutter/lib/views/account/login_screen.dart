@@ -3,6 +3,7 @@ import '../../services/account/auth_exception.dart';
 import '../../services/account/auth_service.dart';
 import '../../firebase_options.dart';
 import 'register_screen.dart';
+import '../home/home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -50,6 +51,10 @@ class _LoginScreenState extends State<LoginScreen> {
           SnackBar(content: Text('Chào mừng trở lại, ${user.email}!')),
         );
         // Chuyển sang màn hình chính của App học tiếng Nhật tại đây
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
       }
     }on AuthException catch (e) {
       _showSnackBar(e.message); // Hiển thị đúng câu tiếng Việt đã được dịch từ dịch vụ ngầm

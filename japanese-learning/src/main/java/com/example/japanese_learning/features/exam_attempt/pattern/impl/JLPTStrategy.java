@@ -4,7 +4,7 @@ import com.example.japanese_learning.entity.exam.ExamAttempt;
 import com.example.japanese_learning.entity.exam.Question;
 import com.example.japanese_learning.entity.exam.StudentResponse;
 import com.example.japanese_learning.enums.ExamType;
-import com.example.japanese_learning.features.exam_attempt.pattern.ExamStrategy;
+import com.example.japanese_learning.features.exam_attempt.pattern.strategy.ExamStrategy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

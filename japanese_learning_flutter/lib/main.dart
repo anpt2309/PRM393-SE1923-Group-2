@@ -6,6 +6,9 @@ import 'views/account/profile_screen.dart';
 import 'views/account/settings_screen.dart';
 import 'views/account/news_screen.dart';
 import 'views/account/sentence_screen.dart';
+import 'views/exam/exam_list_screen.dart';
+import 'views/home/home_screen.dart';
+import 'views/exam_history/exam_history_selector_screen.dart';
 
 void main() async {
   // Kích hoạt Flutter sẵn sàng trước khi chạy lệnh ẩn (async)
@@ -31,7 +34,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         useMaterial3: true,
       ),
-      home: const LoginScreen(), // Đặt màn hình Đăng nhập xuất hiện đầu tiên khi mở app
+      home: const ExamHistorySelectorScreen(),
     );
   }
 }

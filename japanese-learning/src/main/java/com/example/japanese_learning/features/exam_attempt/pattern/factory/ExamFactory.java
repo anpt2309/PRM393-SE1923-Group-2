@@ -1,6 +1,6 @@
-package com.example.japanese_learning.features.exam_attempt.pattern;
+package com.example.japanese_learning.features.exam_attempt.pattern.factory;
 
-import com.example.japanese_learning.entity.exam.Exam;
+import com.example.japanese_learning.features.exam_attempt.pattern.strategy.ExamStrategy;
 import org.springframework.stereotype.Component;
 import java.util.HashMap;
 import java.util.List;

@@ -1,4 +1,4 @@
-package com.example.japanese_learning.features.exam_attempt.pattern;
+package com.example.japanese_learning.features.exam_attempt.pattern.strategy;
 
 import com.example.japanese_learning.entity.exam.ExamAttempt;
 import com.example.japanese_learning.entity.exam.Question;
