@@ -5,7 +5,10 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'auth_exception.dart';
 import 'auth_error_mapper.dart';
 
+
+
 class AuthService {
+
   AuthService({FirebaseAuth? auth, FirebaseStorage? storage})
       : _auth = auth ?? FirebaseAuth.instance,
         _storage = storage ?? FirebaseStorage.instance;
