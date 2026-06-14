@@ -1,5 +1,4 @@
 package com.example.japanese_learning.features.exam;
-
 import com.example.japanese_learning.dto.response.ApiResponse;
 import com.example.japanese_learning.dto.response.ExamResponse;
 import lombok.RequiredArgsConstructor;
@@ -19,13 +18,14 @@ public class ExamController {
     private final ExamService examService;
 
     @GetMapping("/exams")
-    public ApiResponse<Page<ExamResponse>> getExam(@RequestParam(name = "level", required = false) String level,
-                                             @RequestParam(name = "difficulty", required = false) String difficulty,
-                                             @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        ApiResponse<Page<ExamResponse>> response = ApiResponse.<Page<ExamResponse>>builder()
+    public ApiResponse<Page<ExamResponse>> getExam(@RequestParam(required = false) List<String> levelExam,
+                                                   @RequestParam(required = false) List<Integer> difficultyExam,
+                                                   @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable){
+
+        ApiResponse<Page<ExamResponse>> apiResponse = ApiResponse.<Page<ExamResponse>>builder()
                 .id(200)
-                .data(examService.getExam(level, difficulty, pageable))
+                .data(examService.getExam(levelExam,difficultyExam,pageable))
                 .build();
-        return response;
+        return apiResponse;
     }
 }

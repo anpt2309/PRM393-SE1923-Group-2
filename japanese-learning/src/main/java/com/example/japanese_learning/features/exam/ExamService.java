@@ -9,7 +9,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.util.Arrays;
 import java.util.List;
 
 @Service
@@ -18,25 +17,16 @@ public class ExamService {
     private final ExamRepository examRepository;
     private final ExamMapping mapping;
 
-    public Page<ExamResponse> getExam(String levelExam, String difficultyExam, Pageable pageable) {
-        List<String> level = null;
-        List<Long> difficulty = null;
-        if (levelExam != null && !levelExam.isBlank()) {
-            level = Arrays.stream(levelExam.split(","))
-                    .map(String::trim)
-                    .filter(s -> !s.isEmpty())
-                    .toList();
+    public Page<ExamResponse> getExam(List<String> levelExam, List<Integer> difficultyExam, Pageable pageable) {
+        if (levelExam != null && levelExam.isEmpty()) {
+            levelExam = null;
         }
-        if (difficultyExam != null && !difficultyExam.isBlank()) {
-            difficulty = Arrays.stream(difficultyExam.split(","))
-                    .map(String::trim)
-                    .filter(s -> !s.isEmpty())
-                    .map(Long::parseLong)
-                    .toList();
+        if (difficultyExam != null && difficultyExam.isEmpty()) {
+            difficultyExam = null;
         }
-        Page<Exam> getExamPage = examRepository.getExam(level, difficulty, pageable);
-        List<ExamResponse> exam = mapping.toExamResponse(getExamPage.getContent());
-        return new PageImpl<>(exam, getExamPage.getPageable(), getExamPage.getTotalPages());
+        Page<Exam> exam = examRepository.getExam(levelExam, difficultyExam, pageable);
+        List<ExamResponse> toExamResponse = mapping.toExamResponse(exam.getContent());
+        return new PageImpl<>(toExamResponse, exam.getPageable(), exam.getTotalElements());
     }
 
 }

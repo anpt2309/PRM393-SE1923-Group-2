@@ -6,16 +6,19 @@ import org.mapstruct.Mapping;
 import org.mapstruct.Named;
 import org.mapstruct.NullValuePropertyMappingStrategy;
 
+import java.text.DecimalFormat;
 import java.util.List;
 
 @Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 public interface ExamMapping {
-    @Mapping(source = "difficulty", target = "difficulty", qualifiedByName = "defined")
+
+    @Mapping(source = "difficulty", target = "difficulty", qualifiedByName = "definedDifficulty")
+    @Mapping(source = "price", target = "price", qualifiedByName = "definedPrice")
     ExamResponse toExam(Exam exam);
 
     List<ExamResponse> toExamResponse(List<Exam> exam);
 
-    @Named("defined")
+    @Named("definedDifficulty")
     default String definedDifficult(Integer difficult) {
         if (difficult == 1) {
             return "Dễ";
@@ -24,5 +27,12 @@ public interface ExamMapping {
         } else {
             return "Khó";
         }
+    }
+
+    @Named("definedPrice")
+    default String definedPrice(Double price) {
+        DecimalFormat formatter = new DecimalFormat("#,###");
+        String formatted = formatter.format(price);
+        return formatted;
     }
 }

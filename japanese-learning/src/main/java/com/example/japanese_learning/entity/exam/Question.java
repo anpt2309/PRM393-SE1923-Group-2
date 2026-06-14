@@ -3,6 +3,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.List;
+
 @Getter
 @Setter
 @Entity
@@ -20,6 +22,9 @@ public class Question {
 
     @Column(name = "score_weight", nullable = false)
     private Double scoreWeight;
+
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "question")
+    private List<Option> option;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "part_id")

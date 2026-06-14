@@ -25,10 +25,4 @@ public class RewardRedemption {
 
     @Column(name = "redeemed_at", insertable = false, updatable = false)
     private LocalDateTime redeemedAt;
-
-    private Boolean isUsed = false; // Để đánh dấu voucher này đã mang đi giảm giá chưa
-
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "purchase_id")
-    private Purchase purchase; // Cực kỳ quan trọng để biết voucher này áp dụng cho đơn mua nào
 }
