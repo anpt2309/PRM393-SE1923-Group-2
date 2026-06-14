@@ -3,21 +3,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:japanese_learning/views/home/HomeScreen.dart';
 import 'package:japanese_learning/widgets/app_setting.dart';
 import 'firebase_options.dart'; // Đã bổ sung: Bắt buộc phải có để nhận diện 'DefaultFirebaseOptions'
-<<<<<<< an
-import 'views/account/login_screen.dart';
-import 'views/account/profile_screen.dart';
-import 'views/account/settings_screen.dart';
-import 'views/account/news_screen.dart';
-import 'views/account/sentence_screen.dart';
-import 'views/flashcard/create_flashcard_screen.dart';
-import 'views/payment/checkout_screen.dart';
-=======
 import 'views/account/authen/login_screen.dart';
 import 'views/account/profile/profile_screen.dart';
 import 'views/account/profile/settings_screen.dart';
 import 'views/account/news/news_screen.dart';
 import 'views/account/sample_sentence/sentence_screen.dart';
->>>>>>> main
 
 // Khởi tạo một biến static toàn cục để các màn hình con gọi tới dễ dàng
 final AppSettingProvider appSettings = AppSettingProvider();
@@ -37,51 +27,40 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    <<<<<<< an
-    return MaterialApp(
-    title: 'Japanese Learning App',
-    debugShowCheckedModeBanner: false,
-    theme: ThemeData(
-    primarySwatch: Colors.blue,
-    useMaterial3: true,
-    ),
-    home: const CheckoutScreen(), // Đặt màn hình Đăng nhập xuất hiện đầu tiên khi mở app
-    =======
     // Sử dụng AnimatedBuilder để lắng nghe, mỗi khi gọi notifyListeners(),
     // toàn bộ MaterialApp bao gồm cấu hình màu và chữ sẽ được xây dựng lại
     return AnimatedBuilder(
-    animation: appSettings,
-    builder: (context, child) {
-    // Tự động xác định cấu hình màu cục bộ dựa trên provider[cite: 4]
-    final isDark = appSettings.isCustomDarkColor;
-    return MaterialApp(
-    title: 'Japanese Learning',
-    debugShowCheckedModeBanner: false,
+      animation: appSettings,
+      builder: (context, child) {
+        // Tự động xác định cấu hình màu cục bộ dựa trên provider[cite: 4]
+        final isDark = appSettings.isCustomDarkColor;
+        return MaterialApp(
+          title: 'Japanese Learning',
+          debugShowCheckedModeBanner: false,
 
-    // Đưa bảng màu trực tiếp vào Theme hệ thống nhưng kiểm soát theo ý bạn
-    theme: ThemeData(
-    brightness: isDark ? Brightness.dark : Brightness.light,
-    scaffoldBackgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF8F9FA),
-    cardColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-    appBarTheme: AppBarTheme(
-    backgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
-    elevation: isDark ? 0 : 0.5,
-    ),
-    ),
+          // Đưa bảng màu trực tiếp vào Theme hệ thống nhưng kiểm soát theo ý bạn
+          theme: ThemeData(
+            brightness: isDark ? Brightness.dark : Brightness.light,
+            scaffoldBackgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF8F9FA),
+            cardColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+            appBarTheme: AppBarTheme(
+              backgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
+              elevation: isDark ? 0 : 0.5,
+            ),
+          ),
 
-    // ÉP TỶ LỆ KÍCH THƯỚC CHỮ CHO TOÀN BỘ ỨNG DỤNG[cite: 4]
-    builder: (context, widget) {
-    return MediaQuery(
-    data: MediaQuery.of(context).copyWith(
-    textScaleFactor: appSettings.textScaleFactor, // Co giãn chữ đồng bộ[cite: 4]
-    ),
-    child: widget!,
-    );
-    },
-    home: const HomeScreen(),
-    );
-    },
-    >>>>>>> main
+          // ÉP TỶ LỆ KÍCH THƯỚC CHỮ CHO TOÀN BỘ ỨNG DỤNG[cite: 4]
+          builder: (context, widget) {
+            return MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                textScaleFactor: appSettings.textScaleFactor, // Co giãn chữ đồng bộ[cite: 4]
+              ),
+              child: widget!,
+            );
+          },
+          home: const HomeScreen(),
+        );
+      },
     );
   }
 }
