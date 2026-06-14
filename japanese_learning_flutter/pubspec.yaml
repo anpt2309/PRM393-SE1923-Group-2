@@ -30,7 +30,12 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
+  #thêm ngày 6/9/2026 UPDATE
+  flutter_tts: ^4.1.1 # Thêm dòng này (hoặc phiên bản mới nhất)
+  #Thêm ngày 11/6/2026
+  image_picker: ^1.1.2
+  #thêm ngày 11/6/2026
+  audioplayers: ^6.0.0
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
