@@ -1,4 +1,4 @@
-// lib/screens/study_set_screen.dart
+// lib/vocab_kanji_grammar/study_set_screen.dart
 import 'package:flutter/material.dart';
 import 'quiz_screen.dart';
 

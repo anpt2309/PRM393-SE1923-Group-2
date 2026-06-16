@@ -1,4 +1,4 @@
-// lib/screens/streak_calendar_screen.dart
+// lib/vocab_kanji_grammar/streak_calendar_screen.dart
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'reward_shop_screen.dart';

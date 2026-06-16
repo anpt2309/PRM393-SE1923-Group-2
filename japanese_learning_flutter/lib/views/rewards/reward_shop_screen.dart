@@ -1,4 +1,4 @@
-// lib/screens/reward_shop_screen.dart
+// lib/vocab_kanji_grammar/reward_shop_screen.dart
 import 'dart:math';
 import 'package:flutter/material.dart';
 

@@ -1,4 +1,4 @@
-// lib/screens/checkout_screen.dart
+// lib/vocab_kanji_grammar/checkout_screen.dart
 import 'package:flutter/material.dart';
 import 'payment_history_screen.dart';
 
