@@ -15,6 +15,7 @@ void main() async {
   // Kích hoạt Flutter sẵn sàng trước khi chạy lệnh ẩn (async)
   WidgetsFlutterBinding.ensureInitialized();
 
+
   // Kích hoạt Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
