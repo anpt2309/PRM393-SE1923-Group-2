@@ -1,6 +1,8 @@
 package com.example.japanese_learning.features.exam_attempt;
 
 import com.example.japanese_learning.dto.request.AnswerRequest;
+import com.example.japanese_learning.dto.response.ExamAttemptResponse;
+import com.example.japanese_learning.dto.response.QuestionResponse;
 import com.example.japanese_learning.dto.response.SubmitResponse;
 import com.example.japanese_learning.entity.account.User;
 import com.example.japanese_learning.entity.exam.Exam;
@@ -12,7 +14,9 @@ import com.example.japanese_learning.features.exam_attempt.pattern.factory.ExamF
 import com.example.japanese_learning.features.exam_attempt.pattern.strategy.ExamStrategy;
 import com.example.japanese_learning.features.exam_attempt.repository.ExamAttemptRepository;
 import com.example.japanese_learning.features.exam_attempt.repository.UserRepository;
+import com.example.japanese_learning.features.exam_attempt.repository.projection.QuestionProjection;
 import com.example.japanese_learning.mapper.ExamAttemptMapping;
+import com.example.japanese_learning.mapper.QuestionMapping;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,9 +31,10 @@ public class ExamAttemptService {
     private final ExamRepository examRepository;
     private final UserRepository userRepository;
     private final ExamAttemptMapping examAttemptMapping;
+    private final QuestionMapping questionMapping;
 
     @Transactional(rollbackFor = Exception.class)
-    public void startExam(Long userId, Long examId) {
+    public ExamAttemptResponse startExam(Long userId, Long examId) {
         User existingUser = userRepository.findById(userId).orElseThrow(()
                 -> new RuntimeException("Người dùng không có trong hệ thống"));
 
@@ -37,7 +42,16 @@ public class ExamAttemptService {
                 -> new RuntimeException("Bài thi không có trong hệ thống"));
         ExamStrategy typeOfExam = examFactory.getTypeOfExam(existingExam.getExamType());
         ExamAttempt startExam = typeOfExam.startExam(existingUser, existingExam);
+        return examAttemptMapping.toExamAttemptResponse(startExam);
+    }
 
+    @Transactional(rollbackFor = Exception.class)
+    public List<QuestionResponse> getQuestion(Long examId) {
+        Exam existingExam = examRepository.findById(examId).orElseThrow(()
+                -> new RuntimeException("Bài thi không có trong hệ thống"));
+        ExamStrategy examStrategy = examFactory.getTypeOfExam(existingExam.getExamType());
+        List<QuestionProjection> getQuestion = examStrategy.getQuestion(examId);
+        return questionMapping.toQuestionListResponse(getQuestion);
     }
 
 
@@ -54,7 +68,7 @@ public class ExamAttemptService {
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public SubmitResponse submitExam(Long attemptId, List<AnswerRequest> studentResponse ) {
+    public SubmitResponse submitExam(Long attemptId, List<AnswerRequest> studentResponse) {
         // Xây dựng cơ chế nộp bài
         ExamAttempt examAttempt = examAttemptRepository.findById(attemptId).orElseThrow(()
                 -> new RuntimeException("Lịch sử thi không tồn tại"));

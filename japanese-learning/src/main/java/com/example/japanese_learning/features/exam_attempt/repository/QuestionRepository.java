@@ -12,10 +12,12 @@ import java.util.List;
 @Repository
 public interface QuestionRepository extends JpaRepository<Question, Long> {
     // Lấy danh sách câu hỏi dựa vào examid
-    @Query("select q.id, q.content, op.id, op.content from Question q " +
+    @Query("select q.id as questionId, q.content as questionContent, " +
+            "op.id as optionId, op.content as optionContent " +
+            "from Question q " +
             "join q.option op " +
             "join q.part pa " +
-            "where q.id =:examId")
+            "where pa.exam.id = :examId")
     List<QuestionProjection> getQuestionForJLPT(@Param("examId") Long examId);
 
 

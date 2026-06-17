@@ -19,6 +19,7 @@ public class ExamFactory {
         }
     }
 
+
     public ExamStrategy getTypeOfExam(String examType) {
         ExamStrategy exam = examInjection.get(examType);
         if (Objects.isNull(exam)) {
