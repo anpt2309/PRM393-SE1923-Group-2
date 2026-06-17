@@ -37,6 +37,7 @@ public class ExamAttemptService {
                 -> new RuntimeException("Bài thi không có trong hệ thống"));
         ExamStrategy typeOfExam = examFactory.getTypeOfExam(existingExam.getExamType());
         ExamAttempt startExam = typeOfExam.startExam(existingUser, existingExam);
+
     }
 
 
@@ -49,7 +50,7 @@ public class ExamAttemptService {
             throw new RuntimeException("Bài thi đã hoàn thành, bạn không thể sửa kết quả");
         }
         ExamStrategy examStrategy = examFactory.getTypeOfExam(examAttempt.getExam().getExamType());
-        StudentAnswer answer = examStrategy.autoSaveAnswer(examAttempt, studentResponse);
+        examStrategy.autoSaveAnswer(examAttempt, studentResponse);
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -65,7 +66,7 @@ public class ExamAttemptService {
         Exam existingExam = examAttempt.getExam();
         // 1. Lưu đáp án còn sót lại với cơ chế save để tránh bỏ sót đáp án
         ExamStrategy examStrategy = examFactory.getTypeOfExam(examAttempt.getExam().getExamType());
-        StudentAnswer answer = examStrategy.autoSaveAnswer(examAttempt, studentResponse);
+        examStrategy.autoSaveAnswer(examAttempt, studentResponse);
 
         // 2. Chấm điểm và cập nhật trạng thái thi
         ExamAttempt submitExam = examStrategy.submitExam(examAttempt, existingExam);

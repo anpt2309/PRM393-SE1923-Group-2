@@ -12,16 +12,16 @@ import java.util.List;
 @Repository
 public interface StudentAnswerRepository extends JpaRepository<StudentAnswer, Long> {
 
-    // Lấy hết danh sách đáp án có sẵn từ DB mà User đã chọn
-    @Query("select re from StudentAnswer re " +
-            "where re.attempt.id =:attemptId " +
-            "and re.question.id in :questionId")
-    List<StudentAnswer> getAnswerByAttemptIdAndQuestion(Long attemptId, List<Long> questionId);
+        // Lấy hết danh sách đáp án có sẵn từ DB mà User đã chọn
+        @Query("select re from StudentAnswer re " +
+                        "where re.attempt.id =:attemptId " +
+                        "and re.question.id in :questionId")
+        List<StudentAnswer> getAnswerByAttemptIdAndQuestion(Long attemptId, List<Long> questionId);
 
-    // Lấy danh sách câu hỏi mà user đã chọn theo phiên thi(attempt)
-    @Query("select sa.question.id as questionId, sa.selectedOption.id as optionId " +
-            "from StudentAnswer sa " +
-            "where sa.attempt.id = :attemptId")
-    List<StudentAnswerProjection> findByAttempt_Id(@Param("attemptId") Long attemptId);
+        // Lấy danh sách câu hỏi mà user đã chọn theo phiên thi(attempt)
+        @Query(value = "select sa.question_id as questionId, sa.selected_option_id as optionId " +
+                        "from student_responses sa " +
+                        "where sa.attempt_id = :attemptId", nativeQuery = true)
+        List<StudentAnswerProjection> findByAttempt_Id(@Param("attemptId") Long attemptId);
 
 }

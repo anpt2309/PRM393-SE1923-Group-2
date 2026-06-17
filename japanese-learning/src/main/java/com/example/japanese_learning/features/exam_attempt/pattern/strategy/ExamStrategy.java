@@ -17,7 +17,7 @@ public interface ExamStrategy {
 
     ExamAttempt startExam(User existingUser, Exam existingExam);
 
-    StudentAnswer autoSaveAnswer(ExamAttempt examAttempt, List<AnswerRequest> studentResponse);
+    void autoSaveAnswer(ExamAttempt examAttempt, List<AnswerRequest> studentResponse);
 
     ExamAttempt submitExam(ExamAttempt examAttempt,Exam existingExam);
 }

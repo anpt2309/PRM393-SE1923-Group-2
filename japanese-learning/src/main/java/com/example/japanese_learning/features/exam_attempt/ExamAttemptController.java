@@ -3,6 +3,7 @@ package com.example.japanese_learning.features.exam_attempt;
 import com.example.japanese_learning.dto.request.AnswerRequest;
 import com.example.japanese_learning.dto.request.ExamAttemptRequest;
 import com.example.japanese_learning.dto.response.ApiResponse;
+import com.example.japanese_learning.dto.response.SubmitResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,6 +34,18 @@ public class ExamAttemptController {
         ApiResponse<Void> apiResponse = ApiResponse.<Void>builder()
                 .id(200)
                 .message("Lưu đáp án User thành công")
+                .build();
+        return apiResponse;
+    }
+
+    @PostMapping("/exams/submit/{ids}")
+    public ApiResponse<SubmitResponse> submitExam(@PathVariable(name = "ids") Long examAttemptId,
+                                                  @RequestBody List<AnswerRequest> requests) {
+
+        ApiResponse<SubmitResponse> apiResponse = ApiResponse.<SubmitResponse>builder()
+                .id(200)
+                .message("Lưu bài thi thành công")
+                .data(examAttemptService.submitExam(examAttemptId, requests))
                 .build();
         return apiResponse;
     }
