@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:japanese_learning/views/home/HomeScreen.dart';
-import 'package:japanese_learning/widgets/app_setting.dart';
-import 'firebase_options.dart'; // Đã bổ sung: Bắt buộc phải có để nhận diện 'DefaultFirebaseOptions'
-import 'views/account/authen/login_screen.dart';
-import 'views/account/profile/profile_screen.dart';
-import 'views/account/profile/settings_screen.dart';
-import 'views/account/news/news_screen.dart';
-import 'views/account/sample_sentence/sentence_screen.dart';
+import 'package:japanese_learning/viewmodels/app_setting_viewmodel.dart';
+import 'firebase_options.dart';
 
-// Khởi tạo một biến static toàn cục để các màn hình con gọi tới dễ dàng
-final AppSettingProvider appSettings = AppSettingProvider();
+// Alias để các màn hình cũ vẫn dùng AppSettingProvider không bị lỗi
+typedef AppSettingProvider = AppSettingViewModel;
+
+// Biến toàn cục để các màn hình con truy cập dễ dàng
+final AppSettingViewModel appSettings = AppSettingViewModel();
 void main() async {
   // Kích hoạt Flutter sẵn sàng trước khi chạy lệnh ẩn (async)
   WidgetsFlutterBinding.ensureInitialized();

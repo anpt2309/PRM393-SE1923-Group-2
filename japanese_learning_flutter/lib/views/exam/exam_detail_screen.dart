@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../services/exam/exam_service.dart';
+import '../../data/models/exam.dart';
 import '../exam_attempt/exam_attempt_screen.dart';
 
 class ExamDetailScreen extends StatelessWidget {

@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:japanese_learning/main.dart'; // Thêm import để dùng appSettings toàn cục
-import '../../../services/account/auth_exception.dart';
-import '../../../services/account/auth_service.dart';
-import '../../../firebase_options.dart';
+import 'package:japanese_learning/main.dart';
+import '../../../data/models/auth_exception.dart';
+import '../../../data/service/auth_service.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {

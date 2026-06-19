@@ -115,7 +115,7 @@ public class JLPTStrategy implements ExamStrategy {
         // Tính số câu hỏi trong đề
         double score = (countCorrect / (double) getCorrectAnswer.size()) * 10;
         examAttempt.setSubmitTime(LocalDateTime.now());
-        examAttempt.setStatus(AttemptStatus.STARTED);
+        examAttempt.setStatus(AttemptStatus.SUBMITTED);
         examAttempt.setCurrentPart(null);
         examAttempt.setTotalScore(score);
         return examAttempt;

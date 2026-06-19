@@ -16,8 +16,13 @@ public interface ExamRepository extends JpaRepository<Exam, Long> {
     // like %:title%; =:
     @Query("select e from Exam e " +
             "where (:levelExam is null or e.level in :levelExam) " +
-            "and (:difficultyExam is null or e.difficulty in :difficultyExam)")
-    Page<Exam> getExam( @Param("levelExam") List<String> levelExam,
-                        @Param("difficultyExam") List<Integer> difficultyExam, Pageable pageable);
+            "and (:difficultyExam is null or e.difficulty in :difficultyExam) " +
+            "and (:priceFrom is null or e.price >=:priceFrom) " +
+            "and (:priceTo is null or e.price  <=:priceTo) ")
+    Page<Exam> getExam(@Param("levelExam") List<String> levelExam,
+                       @Param("difficultyExam") List<Integer> difficultyExam,
+                       @Param("priceFrom") Double priceFrom,
+                       @Param("priceTo") Double priceTo,
+                       Pageable pageable);
 }
 

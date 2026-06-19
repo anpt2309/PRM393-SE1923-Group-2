@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../services/exam/exam_service.dart';
+import '../../data/models/exam.dart';
+import '../../viewmodels/exam_list_viewmodel.dart';
 import 'exam_detail_screen.dart';
 
 class ExamListScreen extends StatefulWidget {
@@ -10,22 +11,12 @@ class ExamListScreen extends StatefulWidget {
 }
 
 class _ExamListScreenState extends State<ExamListScreen> {
-  final ExamService _examService = ExamService();
-  final TextEditingController _searchController = TextEditingController();
-  final TextEditingController _minPriceController = TextEditingController();
-  final TextEditingController _maxPriceController = TextEditingController();
-
-  // Filter States
-  String _selectedType = 'Tất cả';
-  String _selectedJLPTLevel = 'Tất cả';
-  String _selectedDifficulty = 'Tất cả';
-  String _sortBy = 'price_low_high'; // 'price_low_high' (Thấp -> Cao) or 'price_high_low' (Cao -> Thấp)
-
-  List<Exam> _displayedExams = [];
+  // ViewModel quản lý toàn bộ logic & trạng thái
+  final ExamListViewModel _viewModel = ExamListViewModel();
 
   // Styling Constants
-  static const Color cobaltBlue = Color(0xFF0D47A1); // Strong cobalt blue (Mazii style)
-  static const Color energeticOrange = Color(0xFFFF9800); // Accent orange
+  static const Color cobaltBlue = Color(0xFF0D47A1);
+  static const Color energeticOrange = Color(0xFFFF9800);
   static const Color textDark = Color(0xFF212121);
   static const Color textLight = Color(0xFF757575);
 
@@ -36,46 +27,38 @@ class _ExamListScreenState extends State<ExamListScreen> {
   @override
   void initState() {
     super.initState();
-    _loadExams();
+    _viewModel.addListener(_onViewModelChanged);
+    _viewModel.loadExams();
   }
 
   @override
   void dispose() {
-    _searchController.dispose();
-    _minPriceController.dispose();
-    _maxPriceController.dispose();
+    _viewModel.removeListener(_onViewModelChanged);
+    _viewModel.dispose();
     super.dispose();
   }
 
-  void _loadExams() {
-    final double? minPrice = double.tryParse(_minPriceController.text.trim());
-    final double? maxPrice = double.tryParse(_maxPriceController.text.trim());
-
-    setState(() {
-      _displayedExams = _examService.getFilteredExams(
-        query: _searchController.text,
-        type: _selectedType,
-        jlptLevel: _selectedJLPTLevel,
-        difficulty: _selectedDifficulty,
-        minPrice: minPrice,
-        maxPrice: maxPrice,
-        sortBy: _sortBy,
-      );
-    });
+  void _onViewModelChanged() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
-  void _resetFilters() {
-    setState(() {
-      _searchController.clear();
-      _minPriceController.clear();
-      _maxPriceController.clear();
-      _selectedType = 'Tất cả';
-      _selectedJLPTLevel = 'Tất cả';
-      _selectedDifficulty = 'Tất cả';
-      _sortBy = 'price_low_high';
-      _loadExams();
-    });
-  }
+  // Getters để các hàm build UI gọi dữ liệu qua ViewModel
+  List<Exam> get _displayedExams => _viewModel.displayedExams;
+  bool get _isLoading => _viewModel.isLoading;
+  String? get _errorMessage => _viewModel.errorMessage;
+  String get _selectedType => _viewModel.selectedType;
+  String get _selectedJLPTLevel => _viewModel.selectedJLPTLevel;
+  String get _selectedDifficulty => _viewModel.selectedDifficulty;
+  String get _sortBy => _viewModel.sortBy;
+  TextEditingController get _searchController => _viewModel.searchController;
+  TextEditingController get _minPriceController => _viewModel.minPriceController;
+  TextEditingController get _maxPriceController => _viewModel.maxPriceController;
+
+  Future<void> _loadExams() => _viewModel.loadExams();
+
+  void _resetFilters() => _viewModel.resetFilters();
 
   String _formatPrice(double price) {
     if (price == 0.0) return 'Miễn phí';
@@ -131,11 +114,11 @@ class _ExamListScreenState extends State<ExamListScreen> {
                         TextButton(
                           onPressed: () {
                             setModalState(() {
-                              _minPriceController.clear();
-                              _maxPriceController.clear();
-                              _selectedJLPTLevel = 'Tất cả';
-                              _selectedDifficulty = 'Tất cả';
-                              _sortBy = 'price_low_high';
+                              _viewModel.minPriceController.clear();
+                              _viewModel.maxPriceController.clear();
+                              _viewModel.selectedJLPTLevel = 'Tất cả';
+                              _viewModel.selectedDifficulty = 'Tất cả';
+                              _viewModel.sortBy = 'price_low_high';
                             });
                             setState(() {}); // update main screen
                             _loadExams();
@@ -178,7 +161,7 @@ class _ExamListScreenState extends State<ExamListScreen> {
                           ),
                           onSelected: (selected) {
                             if (selected) {
-                              setModalState(() => _selectedJLPTLevel = level);
+                              setModalState(() => _viewModel.selectedJLPTLevel = level);
                               _loadExams();
                             }
                           },
@@ -215,7 +198,7 @@ class _ExamListScreenState extends State<ExamListScreen> {
                           ),
                           onSelected: (selected) {
                             if (selected) {
-                              setModalState(() => _selectedDifficulty = diff);
+                              setModalState(() => _viewModel.selectedDifficulty = diff);
                               _loadExams();
                             }
                           },
@@ -308,7 +291,7 @@ class _ExamListScreenState extends State<ExamListScreen> {
                             activeColor: cobaltBlue,
                             contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                             onChanged: (value) {
-                              setModalState(() => _sortBy = value!);
+                              setModalState(() => _viewModel.sortBy = value!);
                               _loadExams();
                             },
                           ),
@@ -320,7 +303,7 @@ class _ExamListScreenState extends State<ExamListScreen> {
                             activeColor: cobaltBlue,
                             contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                             onChanged: (value) {
-                              setModalState(() => _sortBy = value!);
+                              setModalState(() => _viewModel.sortBy = value!);
                               _loadExams();
                             },
                           ),
@@ -494,7 +477,7 @@ class _ExamListScreenState extends State<ExamListScreen> {
                     onSelected: (selected) {
                       if (selected) {
                         setState(() {
-                          _selectedType = type;
+                          _viewModel.selectedType = type;
                         });
                         _loadExams();
                       }
@@ -525,12 +508,12 @@ class _ExamListScreenState extends State<ExamListScreen> {
                         children: [
                           if (_selectedJLPTLevel != 'Tất cả')
                             _buildFilterIndicator(_selectedJLPTLevel, () {
-                              setState(() => _selectedJLPTLevel = 'Tất cả');
+                              setState(() => _viewModel.selectedJLPTLevel = 'Tất cả');
                               _loadExams();
                             }),
                           if (_selectedDifficulty != 'Tất cả')
                             _buildFilterIndicator('Độ khó: $_selectedDifficulty', () {
-                              setState(() => _selectedDifficulty = 'Tất cả');
+                              setState(() => _viewModel.selectedDifficulty = 'Tất cả');
                               _loadExams();
                             }),
                           if (_minPriceController.text.isNotEmpty)
@@ -553,18 +536,58 @@ class _ExamListScreenState extends State<ExamListScreen> {
 
           // 3. Main List of Exams
           Expanded(
-            child: _displayedExams.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _displayedExams.length,
-                    itemBuilder: (context, index) {
-                      final exam = _displayedExams[index];
-                      return _buildExamCard(exam);
-                    },
-                  ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator(color: cobaltBlue))
+                : _errorMessage != null
+                    ? _buildErrorState()
+                    : _displayedExams.isEmpty
+                        ? _buildEmptyState()
+                        : ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: _displayedExams.length,
+                            itemBuilder: (context, index) {
+                              final exam = _displayedExams[index];
+                              return _buildExamCard(exam);
+                            },
+                          ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.cloud_off, size: 64, color: Colors.redAccent),
+            const SizedBox(height: 16),
+            const Text(
+              'Không thể tải dữ liệu từ máy chủ',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textDark),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _errorMessage ?? 'Vui lòng kiểm tra kết nối mạng hoặc trạng thái backend.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, color: textLight),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _loadExams,
+              icon: const Icon(Icons.refresh, color: Colors.white),
+              label: const Text('Thử lại', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: cobaltBlue,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

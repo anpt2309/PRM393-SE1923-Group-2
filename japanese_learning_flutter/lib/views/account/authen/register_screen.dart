@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:japanese_learning/main.dart'; // Nhớ thêm import để đồng bộ appSettings toàn cục
-import '../../../services/account/auth_service.dart';
-import '../../../services/account/auth_exception.dart';
+import 'package:japanese_learning/main.dart';
+import '../../../data/service/auth_service.dart';
+import '../../../data/models/auth_exception.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});

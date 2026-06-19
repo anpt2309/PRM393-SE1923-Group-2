@@ -38,7 +38,7 @@ public class ExamAttemptController {
 
     @PostMapping("/exams/auto-save/{ids}")
     public ApiResponse<Void> autoSaveAnswer(@PathVariable(name = "ids") Long examAttemptId,
-                                            @RequestBody List<AnswerRequest> requests) {
+            @RequestBody List<AnswerRequest> requests) {
         examAttemptService.autoSaveAnswer(examAttemptId, requests);
         ApiResponse<Void> apiResponse = ApiResponse.<Void>builder()
                 .id(200)
@@ -47,9 +47,9 @@ public class ExamAttemptController {
         return apiResponse;
     }
 
-    @PostMapping("/exams/submit/{ids}")
-    public ApiResponse<SubmitResponse> submitExam(@PathVariable(name = "ids") Long examAttemptId,
-                                                  @RequestBody List<AnswerRequest> requests) {
+    @PostMapping("/exams/submit/{attemptId}")
+    public ApiResponse<SubmitResponse> submitExam(@PathVariable(name = "attemptId") Long examAttemptId,
+            @RequestBody List<AnswerRequest> requests) {
 
         ApiResponse<SubmitResponse> apiResponse = ApiResponse.<SubmitResponse>builder()
                 .id(200)

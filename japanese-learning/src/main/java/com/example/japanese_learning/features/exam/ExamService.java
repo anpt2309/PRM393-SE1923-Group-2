@@ -17,14 +17,15 @@ public class ExamService {
     private final ExamRepository examRepository;
     private final ExamMapping mapping;
 
-    public Page<ExamResponse> getExam(List<String> levelExam, List<Integer> difficultyExam, Pageable pageable) {
+    public Page<ExamResponse> getExam(List<String> levelExam, List<Integer> difficultyExam,
+                                      Double priceFrom, Double priceTo ,Pageable pageable) {
         if (levelExam != null && levelExam.isEmpty()) {
             levelExam = null;
         }
         if (difficultyExam != null && difficultyExam.isEmpty()) {
             difficultyExam = null;
         }
-        Page<Exam> exam = examRepository.getExam(levelExam, difficultyExam, pageable);
+        Page<Exam> exam = examRepository.getExam(levelExam, difficultyExam,priceFrom,priceTo,  pageable);
         List<ExamResponse> toExamResponse = mapping.toExamResponse(exam.getContent());
         return new PageImpl<>(toExamResponse, exam.getPageable(), exam.getTotalElements());
     }

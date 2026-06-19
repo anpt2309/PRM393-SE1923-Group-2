@@ -2,13 +2,10 @@ import 'dart:async';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'auth_exception.dart';
+import '../models/auth_exception.dart';
 import 'auth_error_mapper.dart';
 
-
-
 class AuthService {
-
   AuthService({FirebaseAuth? auth, FirebaseStorage? storage})
       : _auth = auth ?? FirebaseAuth.instance,
         _storage = storage ?? FirebaseStorage.instance;
@@ -24,7 +21,6 @@ class AuthService {
   String? get email => currentUser?.email;
   String? get photoUrl => currentUser?.photoURL;
   String? get uid => currentUser?.uid;
-
 
   /// Đăng ký tài khoản mới
   Future<User> register({

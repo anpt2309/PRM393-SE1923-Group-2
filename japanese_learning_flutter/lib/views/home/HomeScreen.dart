@@ -5,6 +5,7 @@ import 'package:japanese_learning/views/account/profile/profile_screen.dart';
 import 'package:japanese_learning/views/account/profile/settings_screen.dart';
 import 'package:japanese_learning/views/account/profile/favorites_screen.dart';
 import 'package:japanese_learning/views/account/profile/learning_stats_screen.dart';
+import 'package:japanese_learning/views/exam/exam_list_screen.dart';
 import '../../main.dart';
 
 // --- CÁC MÀN HÌNH ĐÍCH TẠM THỜI (Cho các bảng trong DB chưa có file code cụ thể) ---
@@ -93,7 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
         targetPage = const SentenceScreen();
         break;
       case 'exams':
-        targetPage = const ExamListScreenPlaceholder();
+        targetPage = const ExamListScreen();
         break;
       case 'vocab':
         targetPage = const DictionaryScreenPlaceholder(title: 'Kho Từ Vựng (Vocabulary)');
