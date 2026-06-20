@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../exam_history/exam_history_review_screen.dart';
+import 'package:go_router/go_router.dart';
 
 
 class ExamQuestion {
@@ -437,12 +437,7 @@ class _ExamAttemptScreenState extends State<ExamAttemptScreen> {
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.pop(context); // Pop the confirmation dialog
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ExamHistoryReviewScreen(),
-                      ),
-                    );
+                    context.go('/exams/0/history/review'); // Chuyển sang màn hình kết quả
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryCobalt,

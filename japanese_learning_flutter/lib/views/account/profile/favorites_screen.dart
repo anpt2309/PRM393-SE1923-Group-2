@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:japanese_learning/main.dart'; // Đảm bảo import để lấy appSettings toàn cục
-
+import 'package:go_router/go_router.dart';
+import 'package:japanese_learning/main.dart';
 import '../../../widgets/app_bar.dart';
-import '../news/news_screen.dart'; // Import màn hình tin tức để điều hướng hành vi xem chi tiết bài báo
 
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
@@ -88,14 +87,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   // Điều hướng chi tiết linh hoạt theo phân loại lọc dữ liệu
   void _viewFavoriteDetail(Map<String, String> item, Color blockColor, Color textColor, Color subTextColor) {
     if (selectedFilter == 'news') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => NewsScreen(
-            targetArticle: item, // Truyền trực tiếp Map dữ liệu bài viết vào NewsScreen
-          ),
-        ),
-      );
+      context.push('/news', extra: item);
     } else {
       // Hiển thị BottomSheet đối với phân loại Từ vựng & Kanji tương thích DarkMode cục bộ
       showModalBottomSheet(

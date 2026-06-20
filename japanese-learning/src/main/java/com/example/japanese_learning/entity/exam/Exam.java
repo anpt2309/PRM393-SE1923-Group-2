@@ -1,9 +1,12 @@
 package com.example.japanese_learning.entity.exam;
+
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Setter
@@ -40,4 +43,13 @@ public class Exam {
 
     @Column(name = "price")
     private Double price;
+
+    @Column(name = "start")
+    private Double start;
+
+    @Column(name = "user_count")
+    private Long userCount;
+
+    @OneToMany(mappedBy = "exam", fetch = FetchType.LAZY)
+    List<ExamPart> examParts = new ArrayList<>();
 }

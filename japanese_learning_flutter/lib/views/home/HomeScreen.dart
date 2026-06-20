@@ -1,11 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:japanese_learning/views/account/news/news_screen.dart';
-import 'package:japanese_learning/views/account/sample_sentence/sentence_screen.dart';
-import 'package:japanese_learning/views/account/profile/profile_screen.dart';
-import 'package:japanese_learning/views/account/profile/settings_screen.dart';
-import 'package:japanese_learning/views/account/profile/favorites_screen.dart';
-import 'package:japanese_learning/views/account/profile/learning_stats_screen.dart';
-import 'package:japanese_learning/views/exam/exam_list_screen.dart';
+import 'package:go_router/go_router.dart';
 import '../../main.dart';
 
 // --- CÁC MÀN HÌNH ĐÍCH TẠM THỜI (Cho các bảng trong DB chưa có file code cụ thể) ---
@@ -81,41 +75,34 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   // Hàm điều hướng thực tế sang các màn hình chức năng
   void _navigateToFeature(BuildContext context, String featureType) {
-    Widget targetPage;
-
     switch (featureType) {
       case 'news':
-        targetPage = const NewsScreen();
+        context.push('/news');
         break;
       case 'flashcard':
-        targetPage = const FlashcardScreenPlaceholder();
+        context.push('/flashcards');
         break;
       case 'sentences':
-        targetPage = const SentenceScreen();
+        context.push('/sentence');
         break;
       case 'exams':
-        targetPage = const ExamListScreen();
+        context.push('/exams');
         break;
       case 'vocab':
-        targetPage = const DictionaryScreenPlaceholder(title: 'Kho Từ Vựng (Vocabulary)');
+        context.push('/vocab');
         break;
       case 'kanji':
-        targetPage = const DictionaryScreenPlaceholder(title: 'Kho Chữ Hán (Kanji)');
+        context.push('/kanji');
         break;
       case 'grammar':
-        targetPage = const DictionaryScreenPlaceholder(title: 'Kho Ngữ Pháp (Grammar)');
+        context.push('/grammar');
         break;
       case 'rewards':
-        targetPage = const RewardShopScreenPlaceholder();
+        context.push('/rewards');
         break;
       default:
         return;
     }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => targetPage),
-    );
   }
 
   @override
@@ -170,12 +157,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             children: [
               GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const ProfileScreen()),
-                  );
-                },
+              onTap: () => context.push('/profile'),
                 child: Container(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
@@ -202,12 +184,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const Spacer(),
               // Nút Cài đặt UI nhanh ở góc trên bên phải
               GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const SettingsScreen()),
-                  );
-                },
+                onTap: () => context.push('/profile/settings'),
                 child: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
@@ -241,9 +218,7 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 // Thanh nhập text tìm kiếm chính
                 GestureDetector(
-                  onTap: () {
-
-                  },
+                  onTap: () => context.push('/search'),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     decoration: BoxDecoration(
@@ -394,12 +369,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const LearningStatsScreen()),
-          );
-        },
+        onTap: () => context.push('/profile/stats'),
         borderRadius: BorderRadius.circular(16),
         child: Container(
           width: double.infinity,
@@ -438,12 +408,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Expanded(
             child: InkWell(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const FavoritesScreen()),
-                );
-              },
+              onTap: () => context.push('/profile/favorites'),
               borderRadius: BorderRadius.circular(12),
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
@@ -464,12 +429,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(width: 12),
           Expanded(
             child: InkWell(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const SettingsScreen()),
-                );
-              },
+              onTap: () => context.push('/profile/settings'),
               borderRadius: BorderRadius.circular(12),
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),

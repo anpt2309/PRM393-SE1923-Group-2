@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:japanese_learning/views/home/HomeScreen.dart';
 import 'package:japanese_learning/viewmodels/app_setting_viewmodel.dart';
 import 'firebase_options.dart';
+import 'routes/app_router.dart';
 
 // Alias để các màn hình cũ vẫn dùng AppSettingProvider không bị lỗi
 typedef AppSettingProvider = AppSettingViewModel;
@@ -33,11 +33,12 @@ class MyApp extends StatelessWidget {
       builder: (context, child) {
         // Tự động xác định cấu hình màu cục bộ dựa trên provider[cite: 4]
         final isDark = appSettings.isCustomDarkColor;
-        return MaterialApp(
+        return MaterialApp.router(
           title: 'Japanese Learning',
           debugShowCheckedModeBanner: false,
+          routerConfig: appRouter,
 
-          // Đưa bảng màu trực tiếp vào Theme hệ thống nhưng kiểm soát theo ý bạn
+          // Bảng màu theo chế độ tối/sáng
           theme: ThemeData(
             brightness: isDark ? Brightness.dark : Brightness.light,
             scaffoldBackgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF8F9FA),
@@ -48,16 +49,15 @@ class MyApp extends StatelessWidget {
             ),
           ),
 
-          // ÉP TỶ LỆ KÍCH THƯỚC CHỮ CHO TOÀN BỘ ỨNG DỤNG[cite: 4]
+          // Ép tỷ lệ kích thước chữ cho toàn bộ ứng dụng
           builder: (context, widget) {
             return MediaQuery(
               data: MediaQuery.of(context).copyWith(
-                textScaleFactor: appSettings.textScaleFactor, // Co giãn chữ đồng bộ[cite: 4]
+                textScaleFactor: appSettings.textScaleFactor,
               ),
               child: widget!,
             );
           },
-          home: const HomeScreen(),
         );
       },
     );

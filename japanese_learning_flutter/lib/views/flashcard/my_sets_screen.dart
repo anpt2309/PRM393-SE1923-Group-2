@@ -1,8 +1,6 @@
 // lib/vocab_kanji_grammar/my_sets_screen.dart
 import 'package:flutter/material.dart';
-import '../flashcard/study_set_screen.dart';
-import '../flashcard/quiz_screen.dart';
-import '../flashcard/history_flashcard_quiz.dart';
+import 'package:go_router/go_router.dart';
 
 class MySetsScreen extends StatefulWidget {
   const MySetsScreen({super.key});
@@ -152,7 +150,7 @@ class _MySetsScreenState extends State<MySetsScreen> with SingleTickerProviderSt
           ),
           IconButton(
             icon: const Icon(Icons.add, color: Colors.white),
-            onPressed: () {},
+            onPressed: () => context.push('/flashcards/create'),
           ),
         ],
       ),
@@ -185,7 +183,7 @@ class _MySetsScreenState extends State<MySetsScreen> with SingleTickerProviderSt
             const SizedBox(height: 8),
             if (isMySets)
               ElevatedButton(
-                onPressed: () {},
+                onPressed: () => context.push('/flashcards/create'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1E88E5),
                   shape: RoundedRectangleBorder(
@@ -333,14 +331,12 @@ class _MySetsScreenState extends State<MySetsScreen> with SingleTickerProviderSt
                 Expanded(
                   child: GestureDetector(
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => StudySetScreen(
-                            setName: set['name'],
-                            cardCount: set['cardCount'],
-                          ),
-                        ),
+                      context.push(
+                        '/flashcards/${set['name']}/study',
+                        extra: {
+                          'setName': set['name'] as String,
+                          'cardCount': set['cardCount'] as int,
+                        },
                       );
                     },
                     child: Container(
@@ -372,14 +368,12 @@ class _MySetsScreenState extends State<MySetsScreen> with SingleTickerProviderSt
                 Expanded(
                   child: GestureDetector(
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => QuizScreen(
-                            setName: set['name'],
-                            cards: cards,
-                          ),
-                        ),
+                      context.push(
+                        '/flashcards/${set['name']}/quiz',
+                        extra: {
+                          'setName': set['name'] as String,
+                          'cards': cards,
+                        },
                       );
                     },
                     child: Container(
@@ -411,11 +405,9 @@ class _MySetsScreenState extends State<MySetsScreen> with SingleTickerProviderSt
                 Expanded(
                   child: GestureDetector(
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => HistoryFlashcardQuiz(setName: set['name']),
-                        ),
+                      context.push(
+                        '/flashcards/${set['name']}/quiz/history',
+                        extra: set['name'] as String,
                       );
                     },
                     child: Container(

@@ -1,7 +1,7 @@
 // lib/vocab_kanji_grammar/streak_calendar_screen.dart
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'reward_shop_screen.dart';
+import 'package:go_router/go_router.dart';
 
 class StreakCalendarScreen extends StatefulWidget {
   const StreakCalendarScreen({super.key});
@@ -180,19 +180,7 @@ class _StreakCalendarScreenState extends State<StreakCalendarScreen> {
   }
 
   void _goToShop() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => RewardShopScreen(
-          currentCoins: _totalCoins,
-          onCoinsUpdated: (newCoins) {
-            setState(() {
-              _totalCoins = newCoins;
-            });
-          },
-        ),
-      ),
-    );
+    context.push('/rewards', extra: _totalCoins);
   }
 
   @override

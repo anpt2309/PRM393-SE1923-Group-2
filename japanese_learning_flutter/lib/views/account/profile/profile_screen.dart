@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:japanese_learning/main.dart'; // Đảm bảo import đúng đường dẫn để lấy appSettings toàn cục
+import 'package:go_router/go_router.dart';
+import 'package:japanese_learning/main.dart';
 import '../../../widgets/app_bar.dart';
-import 'settings_screen.dart';
-import 'personal_info_screen.dart';
-import 'security_screen.dart';
-import 'favorites_screen.dart';
-import 'learning_stats_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -47,7 +43,7 @@ class ProfileScreen extends StatelessWidget {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                   );
-                  // Navigator.of(context).pushNamedAndRemoveUntil('/login', (Route<dynamic> route) => false);
+                  context.go('/login');
                 }
               },
               child: const Text('Đăng xuất', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
@@ -132,7 +128,7 @@ class ProfileScreen extends StatelessWidget {
                                 'Thông tin cá nhân',
                                 textColor, iconColor, arrowColor, scale,
                                 onTap: () {
-                                  Navigator.push(context, MaterialPageRoute(builder: (context) => const PersonalInfoScreen()));
+                                  context.push('/profile/info');
                                 }
                             ),
                             _buildMenuTile(
@@ -140,7 +136,7 @@ class ProfileScreen extends StatelessWidget {
                                 'Bảo mật & mật khẩu',
                                 textColor, iconColor, arrowColor, scale,
                                 onTap: () {
-                                  Navigator.push(context, MaterialPageRoute(builder: (context) => const SecurityScreen()));
+                                  context.push('/profile/security');
                                 }
                             ),
                             _buildMenuTile(
@@ -148,7 +144,7 @@ class ProfileScreen extends StatelessWidget {
                                 'Yêu thích',
                                 textColor, iconColor, arrowColor, scale,
                                 onTap: () {
-                                  Navigator.push(context, MaterialPageRoute(builder: (context) => const FavoritesScreen()));
+                                  context.push('/profile/favorites');
                                 }
                             ),
                             _buildMenuTile(
@@ -156,7 +152,7 @@ class ProfileScreen extends StatelessWidget {
                                 'Thống kê học tập',
                                 textColor, iconColor, arrowColor, scale,
                                 onTap: () {
-                                  Navigator.push(context, MaterialPageRoute(builder: (context) => const LearningStatsScreen()));
+                                  context.push('/profile/stats');
                                 }
                             ),
                             _buildMenuTile(
@@ -164,7 +160,7 @@ class ProfileScreen extends StatelessWidget {
                                 'Cài đặt hệ thống',
                                 textColor, iconColor, arrowColor, scale,
                                 onTap: () {
-                                  Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsScreen()));
+                                  context.push('/profile/settings');
                                 }
                             ),
                           ],

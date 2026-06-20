@@ -14,4 +14,7 @@ public class ExamResponse {
     private Long totalDuration;
     private String price;
     private String difficulty;
+    private Double start;
+    private String userCount;
+    private String description;
 }

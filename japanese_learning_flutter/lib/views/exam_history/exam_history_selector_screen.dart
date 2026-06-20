@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import '../exam_attempt/exam_attempt_screen.dart';
-import 'exam_history_review_screen.dart';
+import 'package:go_router/go_router.dart';
 
 class ExamAttemptHistoryItem {
   final String title;
@@ -204,10 +203,7 @@ class _ExamHistorySelectorScreenState extends State<ExamHistorySelectorScreen> {
                           borderRadius: BorderRadius.circular(12),
                           child: InkWell(
                             onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => const ExamHistoryReviewScreen()),
-                              );
+                              context.push('/exams/0/history/review');
                             },
                             borderRadius: BorderRadius.circular(12),
                             child: Padding(
@@ -321,10 +317,7 @@ class _ExamHistorySelectorScreenState extends State<ExamHistorySelectorScreen> {
       // Floating Action Button to start a new exam
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const ExamAttemptScreen()),
-          );
+          context.push('/exams');
         },
         backgroundColor: accentOrange,
         icon: const Icon(Icons.add, color: Colors.white),

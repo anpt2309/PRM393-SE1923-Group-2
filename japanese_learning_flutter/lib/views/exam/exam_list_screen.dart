@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../data/models/exam.dart';
 import '../../viewmodels/exam_list_viewmodel.dart';
-import 'exam_detail_screen.dart';
 
 class ExamListScreen extends StatefulWidget {
   const ExamListScreen({super.key});
@@ -60,19 +60,27 @@ class _ExamListScreenState extends State<ExamListScreen> {
 
   void _resetFilters() => _viewModel.resetFilters();
 
-  String _formatPrice(double price) {
-    if (price == 0.0) return 'Miễn phí';
-    final value = price.toInt().toString();
-    final buffer = StringBuffer();
-    int count = 0;
-    for (int i = value.length - 1; i >= 0; i--) {
-      buffer.write(value[i]);
-      count++;
-      if (count % 3 == 0 && i != 0) {
-        buffer.write('.');
-      }
+  String _formatPrice(String price) {
+    final lowerPrice = price.toLowerCase().trim();
+    if (lowerPrice == '0' || lowerPrice == '0.0' || lowerPrice == 'miễn phí' || lowerPrice.isEmpty) {
+      return 'Miễn phí';
     }
-    return '${buffer.toString().split('').reversed.join('')}đ';
+    final cleanPrice = price.replaceAll(RegExp(r'[^\d]'), '');
+    final parsed = double.tryParse(cleanPrice);
+    if (parsed != null) {
+      final value = parsed.toInt().toString();
+      final buffer = StringBuffer();
+      int count = 0;
+      for (int i = value.length - 1; i >= 0; i--) {
+        buffer.write(value[i]);
+        count++;
+        if (count % 3 == 0 && i != 0) {
+          buffer.write('.');
+        }
+      }
+      return '${buffer.toString().split('').reversed.join('')}đ';
+    }
+    return price;
   }
 
   // Open Bottom Sheet for Filter and Sort settings
@@ -664,12 +672,7 @@ class _ExamListScreenState extends State<ExamListScreen> {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ExamDetailScreen(exam: exam),
-            ),
-          );
+          context.push('/exams/${exam.id}', extra: exam);
         },
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -680,25 +683,9 @@ class _ExamListScreenState extends State<ExamListScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Level Badges & Type
+                  // Badges & Type
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: cobaltBlue.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          exam.jlptLevel,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: cobaltBlue,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
@@ -723,7 +710,7 @@ class _ExamListScreenState extends State<ExamListScreen> {
                           border: Border.all(color: Colors.grey.shade300),
                         ),
                         child: Text(
-                          exam.type,
+                          exam.examType,
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
@@ -755,50 +742,47 @@ class _ExamListScreenState extends State<ExamListScreen> {
                   color: textDark,
                 ),
               ),
-              const SizedBox(height: 6),
-
-              // Description (max lines 2)
-              Text(
-                exam.description,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: textLight,
+              if (exam.description.trim().isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  exam.description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: textLight,
+                  ),
                 ),
-              ),
+              ],
               const SizedBox(height: 14),
 
-              // Stats (Duration, Questions, Enrolled)
+              // Stats (Duration, Rating, UserCount)
               Row(
                 children: [
                   const Icon(Icons.timer_outlined, size: 14, color: textLight),
                   const SizedBox(width: 4),
                   Text(
-                    '${exam.durationMinutes} phút',
-                    style: const TextStyle(fontSize: 12, color: textLight),
-                  ),
-                  const SizedBox(width: 14),
-                  const Icon(Icons.help_outline, size: 14, color: textLight),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${exam.questionsCount} câu hỏi',
+                    '${exam.totalDuration} phút',
                     style: const TextStyle(fontSize: 12, color: textLight),
                   ),
                   const Spacer(),
                   const Icon(Icons.star, size: 14, color: Colors.amber),
                   const SizedBox(width: 2),
                   Text(
-                    exam.rating.toString(),
+                    exam.start.toString(),
                     style: const TextStyle(fontSize: 12, color: textDark, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(width: 8),
                   Icon(Icons.people_outline, size: 14, color: Colors.grey.shade400),
                   const SizedBox(width: 2),
                   Text(
-                    exam.enrolledCount >= 1000
-                        ? '${(exam.enrolledCount / 1000).toStringAsFixed(1)}k'
-                        : '${exam.enrolledCount}',
+                    (() {
+                      final val = int.tryParse(exam.userCount) ?? 0;
+                      if (val >= 1000) {
+                        return '${(val / 1000).toStringAsFixed(1)}k';
+                      }
+                      return exam.userCount;
+                    })(),
                     style: const TextStyle(fontSize: 12, color: textLight),
                   ),
                 ],

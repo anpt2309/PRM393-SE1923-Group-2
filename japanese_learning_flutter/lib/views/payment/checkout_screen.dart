@@ -1,6 +1,5 @@
-// lib/vocab_kanji_grammar/checkout_screen.dart
 import 'package:flutter/material.dart';
-import 'payment_history_screen.dart';
+import 'package:go_router/go_router.dart';
 
 class CheckoutScreen extends StatefulWidget {
   final int currentCoins;
@@ -289,14 +288,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   void _goToHistory() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => PaymentHistoryScreen(
-          currentCoins: widget.currentCoins,  // Thêm tham số này
-        ),
-      ),
-    );
+    context.push('/payment/history', extra: widget.currentCoins);
   }
 
   @override

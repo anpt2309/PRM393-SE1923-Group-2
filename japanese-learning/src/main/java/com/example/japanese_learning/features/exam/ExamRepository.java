@@ -24,5 +24,17 @@ public interface ExamRepository extends JpaRepository<Exam, Long> {
                        @Param("priceFrom") Double priceFrom,
                        @Param("priceTo") Double priceTo,
                        Pageable pageable);
+
+
+    // getExamDetail
+    // getStart -> mapping Start không lấy đc data
+    // sửa: start
+    @Query("select e.id as examId, e.title as title, e.difficulty as difficulty, " +
+            "e.examType as type, e.level as level, e.description as description, " +
+            "e.start as start, e.userCount as userCount," +
+            "pa.name as partName, pa.duration as partDuration  from Exam e " +
+            "join e.examParts pa " +
+            "where (:examId is null or e.id =:examId)")
+    List<ExamProjection> getExamDetail(@Param("examId") Long examId);
 }
 

@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:japanese_learning/views/home/HomeScreen.dart'; // Import màn hình Home của bạn
-import 'package:japanese_learning/views/account/profile/settings_screen.dart';
-
-import '../views/home/HomeScreen.dart';
+import 'package:go_router/go_router.dart';
 
 class GlobalAddMenuButton extends StatelessWidget {
   final Color cardColor;
@@ -31,12 +28,8 @@ class GlobalAddMenuButton extends StatelessWidget {
         offset: const Offset(0, 50),
         onSelected: (value) {
           if (value == 'home') {
-            // Logic chuẩn để về trang chủ: xóa sạch stack cũ
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
-                  (route) => false,
-            );
+            // Dùng go_router: .go() thay thế và xóa sạch stack cũ
+            context.go('/');
           } else {
             // Các chức năng còn lại (Tra cứu, Cài đặt) truyền ra ngoài
             onAction(value);

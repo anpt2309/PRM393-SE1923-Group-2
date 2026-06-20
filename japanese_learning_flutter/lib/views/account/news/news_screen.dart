@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:go_router/go_router.dart';
 import '../../../main.dart';
 import '../../../widgets/add_menu_button.dart';
-import '../profile/settings_screen.dart';
 
 class NewsScreen extends StatefulWidget {
   // Thêm các tham số cấu hình giao diện động từ Settings truyền vào (hoặc dùng mặc định)
@@ -276,7 +276,7 @@ class _NewsScreenState extends State<NewsScreen> with SingleTickerProviderStateM
           onAction: (value) {
             if (value == 'settings') {
               // Điều hướng đến cài đặt
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsScreen()));
+              context.push('/profile/settings');
             }
           },
         ),

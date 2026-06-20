@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:japanese_learning/main.dart';
 import '../../../data/models/auth_exception.dart';
 import '../../../data/service/auth_service.dart';
-import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -47,6 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Đăng nhập thành công!'), backgroundColor: Colors.green),
         );
+        context.go('/');
       }
     } on AuthException catch (e) {
       if (mounted) {
@@ -187,7 +188,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Text('Bạn chưa có tài khoản Mazii? ', style: TextStyle(color: subTextColor)),
                     GestureDetector(
                       onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterScreen()));
+                        context.push('/register');
                       },
                       child: Text('Đăng kí', style: TextStyle(color: Colors.blue.shade600, fontWeight: FontWeight.bold)),
                     ),

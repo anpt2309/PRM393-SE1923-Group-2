@@ -1,16 +1,14 @@
 package com.example.japanese_learning.features.exam;
 
 import com.example.japanese_learning.dto.response.ApiResponse;
+import com.example.japanese_learning.dto.response.ExamDetailResponse;
 import com.example.japanese_learning.dto.response.ExamResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -30,6 +28,16 @@ public class ExamController {
         ApiResponse<Page<ExamResponse>> apiResponse = ApiResponse.<Page<ExamResponse>>builder()
                 .id(200)
                 .data(examService.getExam(levelExam, difficultyExam, priceFrom, priceTo, pageable))
+                .build();
+        return apiResponse;
+    }
+
+    @GetMapping("/exams/details/{ids}")
+    public ApiResponse<ExamDetailResponse> getExamDetail(@PathVariable(name = "ids") Long examId) {
+
+        ApiResponse<ExamDetailResponse> apiResponse = ApiResponse.<ExamDetailResponse>builder()
+                .id(200)
+                .data(examService.getExamDetail(examId))
                 .build();
         return apiResponse;
     }

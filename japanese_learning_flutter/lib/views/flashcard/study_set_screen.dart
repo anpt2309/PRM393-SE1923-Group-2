@@ -1,6 +1,6 @@
 // lib/vocab_kanji_grammar/study_set_screen.dart
 import 'package:flutter/material.dart';
-import 'quiz_screen.dart';
+import 'package:go_router/go_router.dart';
 
 class StudySetScreen extends StatefulWidget {
   final String setName;
@@ -166,14 +166,12 @@ class _StudySetScreenState extends State<StudySetScreen> with SingleTickerProvid
   }
 
   void _startQuiz() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => QuizScreen(
-          setName: widget.setName,
-          cards: _displayCards,
-        ),
-      ),
+    context.push(
+      '/flashcards/${widget.setName}/quiz',
+      extra: {
+        'setName': widget.setName,
+        'cards': _displayCards,
+      },
     );
   }
 

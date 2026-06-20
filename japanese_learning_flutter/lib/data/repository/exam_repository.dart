@@ -1,4 +1,5 @@
 import '../models/exam.dart';
+import '../models/exam_detail.dart';
 import '../service/exam_service.dart';
 
 /// Repository đề thi: lớp trung gian giữa ExamService và ExamListViewModel.
@@ -56,9 +57,14 @@ class ExamRepository {
       exams = exams.where((e) => e.title.toLowerCase().contains(q)).toList();
     }
     if (type != null && type != 'Tất cả') {
-      exams = exams.where((e) => e.type == type).toList();
+      exams = exams.where((e) => e.examType == type).toList();
     }
 
     return exams;
+  }
+
+  /// Lấy thông tin chi tiết đề thi.
+  Future<ExamDetail> getExamDetail(int examId) async {
+    return _examService.fetchExamDetail(examId);
   }
 }

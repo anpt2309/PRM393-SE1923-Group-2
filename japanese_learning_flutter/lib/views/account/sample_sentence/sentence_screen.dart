@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
-import 'package:japanese_learning/main.dart'; // Đảm bảo import để lấy cấu hình appSettings toàn cục
-import 'package:japanese_learning/views/account/profile/settings_screen.dart';
+import 'package:go_router/go_router.dart';
+import 'package:japanese_learning/main.dart';
 import 'package:japanese_learning/widgets/app_bar.dart';
-
-import '../../../widgets/add_menu_button.dart'; // Import CustomAppBar chuẩn của dự án
+import '../../../widgets/add_menu_button.dart';
 
 class SentenceScreen extends StatefulWidget {
   const SentenceScreen({super.key});
@@ -154,7 +153,7 @@ class _SentenceScreenState extends State<SentenceScreen> {
                 onAction: (value) {
                   if (value == 'settings') {
                     // Điều hướng đến cài đặt
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsScreen()));
+                    context.push('/profile/settings');
                   }
                 },
               ),

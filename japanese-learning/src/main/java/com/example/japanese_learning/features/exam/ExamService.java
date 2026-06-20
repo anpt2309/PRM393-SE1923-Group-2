@@ -1,5 +1,7 @@
 package com.example.japanese_learning.features.exam;
 
+import com.example.japanese_learning.dto.response.ExamDetailResponse;
+import com.example.japanese_learning.dto.response.ExamPartResponse;
 import com.example.japanese_learning.dto.response.ExamResponse;
 import com.example.japanese_learning.entity.exam.Exam;
 import com.example.japanese_learning.mapper.ExamMapping;
@@ -9,7 +11,9 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -30,4 +34,13 @@ public class ExamService {
         return new PageImpl<>(toExamResponse, exam.getPageable(), exam.getTotalElements());
     }
 
+    public ExamDetailResponse getExamDetail(Long examId) {
+        List<ExamProjection> getExamDetail = examRepository.getExamDetail(examId);
+        if(getExamDetail.isEmpty()){
+            throw new RuntimeException("Bài thi không tồn tại");
+        }
+
+        ExamDetailResponse response = mapping.toCustomExamDetailResponse(getExamDetail);
+        return response;
+    }
 }

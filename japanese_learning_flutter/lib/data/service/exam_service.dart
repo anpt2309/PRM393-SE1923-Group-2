@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import '../models/exam.dart';
+import '../models/exam_detail.dart';
 
 class ExamService {
   // Base URL resolution
@@ -65,5 +66,25 @@ class ExamService {
       }
     }
     throw Exception('Server error: ${response.statusCode}');
+  }
+
+  /// Lấy chi tiết đề thi theo ID
+  Future<ExamDetail> fetchExamDetail(int examId) async {
+    final uri = Uri.parse('$baseUrl/exams/details/$examId');
+
+    final response = await http.get(uri).timeout(const Duration(seconds: 8));
+
+    if (response.statusCode == 200) {
+      final decodedData = json.decode(utf8.decode(response.bodyBytes));
+
+      if (decodedData is Map<String, dynamic> && decodedData.containsKey('data')) {
+        final dataField = decodedData['data'];
+        if (dataField is Map<String, dynamic>) {
+          return ExamDetail.fromJson(dataField);
+        }
+      }
+      throw Exception('Dữ liệu chi tiết đề thi không đúng định dạng');
+    }
+    throw Exception('Lỗi máy chủ: ${response.statusCode}');
   }
 }
