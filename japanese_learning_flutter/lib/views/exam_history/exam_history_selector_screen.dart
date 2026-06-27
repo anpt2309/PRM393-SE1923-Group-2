@@ -1,25 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-
-class ExamAttemptHistoryItem {
-  final String title;
-  final String level; // N1, N2, N3, N4, N5
-  final double score; // out of 180
-  final int correctCount;
-  final int totalQuestions;
-  final String duration;
-  final String date;
-
-  ExamAttemptHistoryItem({
-    required this.title,
-    required this.level,
-    required this.score,
-    required this.correctCount,
-    required this.totalQuestions,
-    required this.duration,
-    required this.date,
-  });
-}
+import '../../data/models/exam_history.dart';
+import '../../data/repository/exam_repository.dart';
 
 class ExamHistorySelectorScreen extends StatefulWidget {
   const ExamHistorySelectorScreen({super.key});
@@ -41,54 +23,36 @@ class _ExamHistorySelectorScreenState extends State<ExamHistorySelectorScreen> {
   // "highest" = Điểm cao nhất, "lowest" = Điểm thấp nhất
   String _sortOrder = 'highest'; 
 
-  // Mock List of Taken Exams
-  final List<ExamAttemptHistoryItem> _historyItems = [
-    ExamAttemptHistoryItem(
-      title: 'Đề thi thử JLPT N3 - WT2025T21',
-      level: 'N3',
-      score: 120.0,
-      correctCount: 20,
-      totalQuestions: 30,
-      duration: '45:12',
-      date: '12/06/2026',
-    ),
-    ExamAttemptHistoryItem(
-      title: 'Đề thi thử JLPT N2 - Standard N2',
-      level: 'N2',
-      score: 156.0,
-      correctCount: 26,
-      totalQuestions: 30,
-      duration: '58:20',
-      date: '10/06/2026',
-    ),
-    ExamAttemptHistoryItem(
-      title: 'Đề thi thử JLPT N3 - Intensive Gram',
-      level: 'N3',
-      score: 90.0,
-      correctCount: 15,
-      totalQuestions: 30,
-      duration: '54:00',
-      date: '08/06/2026',
-    ),
-    ExamAttemptHistoryItem(
-      title: 'Đề thi thử JLPT N4 - Basic N4',
-      level: 'N4',
-      score: 174.0,
-      correctCount: 29,
-      totalQuestions: 30,
-      duration: '32:45',
-      date: '05/06/2026',
-    ),
-    ExamAttemptHistoryItem(
-      title: 'Đề thi thử JLPT N5 - Vocabulary N5',
-      level: 'N5',
-      score: 180.0,
-      correctCount: 30,
-      totalQuestions: 30,
-      duration: '21:10',
-      date: '02/06/2026',
-    ),
-  ];
+  final ExamRepository _repository = ExamRepository();
+  List<ExamAttemptHistoryItem> _historyItems = [];
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory();
+  }
+
+  Future<void> _loadHistory() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    try {
+      // Sử dụng userId = 1 làm mặc định theo API backend
+      final data = await _repository.getExamHistory(1);
+      setState(() {
+        _historyItems = data;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
 
   List<ExamAttemptHistoryItem> get _sortedHistoryItems {
     final sortedList = List<ExamAttemptHistoryItem>.from(_historyItems);
@@ -172,12 +136,49 @@ class _ExamHistorySelectorScreenState extends State<ExamHistorySelectorScreen> {
           
           // List view of history
           Expanded(
-            child: sortedList.isEmpty
+            child: _isLoading
                 ? const Center(
-                    child: Text('Chưa có lịch sử làm đề nào.', style: TextStyle(color: textLight, fontSize: 14)),
+                    child: CircularProgressIndicator(color: primaryCobalt),
                   )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16.0),
+                : _errorMessage != null
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.cloud_off, size: 48, color: Colors.redAccent),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'Không thể tải lịch sử làm bài',
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textDark),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                _errorMessage!,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(fontSize: 13, color: textLight),
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton.icon(
+                                onPressed: _loadHistory,
+                                icon: const Icon(Icons.refresh, color: Colors.white, size: 16),
+                                label: const Text('Thử lại', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: primaryCobalt,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : sortedList.isEmpty
+                        ? const Center(
+                            child: Text('Chưa có lịch sử làm đề nào.', style: TextStyle(color: textLight, fontSize: 14)),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.all(16.0),
                     itemCount: sortedList.length,
                     itemBuilder: (context, index) {
                       final item = sortedList[index];
@@ -203,7 +204,7 @@ class _ExamHistorySelectorScreenState extends State<ExamHistorySelectorScreen> {
                           borderRadius: BorderRadius.circular(12),
                           child: InkWell(
                             onTap: () {
-                              context.push('/exams/0/history/review');
+                              context.push('/exams/0/history/review', extra: item.idAttempt);
                             },
                             borderRadius: BorderRadius.circular(12),
                             child: Padding(

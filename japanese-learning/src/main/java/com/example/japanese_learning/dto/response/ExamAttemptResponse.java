@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class ExamAttemptResponse {
+    private Long id;
     private LocalDateTime startTime;
     private Long userId;
     private Long examId;

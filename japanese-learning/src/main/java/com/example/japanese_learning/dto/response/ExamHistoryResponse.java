@@ -1,5 +1,4 @@
 package com.example.japanese_learning.dto.response;
-
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -9,7 +8,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class SubmitResponse {
+public class ExamHistoryResponse {
     private Long idAttempt;
     private String examName;
     private String examLevel;

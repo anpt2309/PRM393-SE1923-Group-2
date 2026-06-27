@@ -1,5 +1,7 @@
 import '../models/exam.dart';
 import '../models/exam_detail.dart';
+import '../models/exam_history.dart';
+import '../models/exam_history_detail.dart';
 import '../service/exam_service.dart';
 
 /// Repository đề thi: lớp trung gian giữa ExamService và ExamListViewModel.
@@ -66,5 +68,35 @@ class ExamRepository {
   /// Lấy thông tin chi tiết đề thi.
   Future<ExamDetail> getExamDetail(int examId) async {
     return _examService.fetchExamDetail(examId);
+  }
+
+  /// Lấy lịch sử làm bài thi của người dùng.
+  Future<List<ExamAttemptHistoryItem>> getExamHistory(int userId) async {
+    return _examService.fetchExamHistory(userId);
+  }
+
+  /// Lấy chi tiết lịch sử bài thi theo attemptId.
+  Future<ExamHistoryDetail> getExamHistoryDetail(int attemptId) async {
+    return _examService.fetchExamHistoryDetail(attemptId);
+  }
+
+  /// Khởi tạo bài thi
+  Future<Map<String, dynamic>> startExam(int userId, int examId) async {
+    return _examService.startExam(userId, examId);
+  }
+
+  /// Lấy danh sách câu hỏi
+  Future<List<Map<String, dynamic>>> getQuestions(int examId) async {
+    return _examService.getQuestions(examId);
+  }
+
+  /// Lưu đáp án tự động
+  Future<void> autoSaveAnswer(int attemptId, List<Map<String, dynamic>> requests) async {
+    return _examService.autoSaveAnswer(attemptId, requests);
+  }
+
+  /// Nộp bài thi
+  Future<Map<String, dynamic>> submitExam(int attemptId, List<Map<String, dynamic>> requests) async {
+    return _examService.submitExam(attemptId, requests);
   }
 }

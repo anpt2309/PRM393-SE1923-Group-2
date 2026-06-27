@@ -116,7 +116,11 @@ final appRouter = GoRouter(
           routes: [
             GoRoute(
               path: 'attempt',
-              builder: (context, state) => const ExamAttemptScreen(),
+              builder: (context, state) {
+                final examIdStr = state.pathParameters['examId'] ?? '0';
+                final examId = int.tryParse(examIdStr) ?? 0;
+                return ExamAttemptScreen(examId: examId);
+              },
             ),
             GoRoute(
               path: 'history',
@@ -124,7 +128,10 @@ final appRouter = GoRouter(
               routes: [
                 GoRoute(
                   path: 'review',
-                  builder: (context, state) => const ExamHistoryReviewScreen(),
+                  builder: (context, state) {
+                    final attemptId = state.extra as int?;
+                    return ExamHistoryReviewScreen(attemptId: attemptId);
+                  },
                 ),
               ],
             ),

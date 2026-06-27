@@ -194,12 +194,7 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Thanh toán thành công! Bài thi đã được mở khoá.'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
+                context.push('/payment/checkout');
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: energeticOrange,

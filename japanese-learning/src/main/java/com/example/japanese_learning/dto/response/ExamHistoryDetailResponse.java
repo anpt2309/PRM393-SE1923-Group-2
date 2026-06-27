@@ -3,13 +3,14 @@ package com.example.japanese_learning.dto.response;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class SubmitResponse {
+public class ExamHistoryDetailResponse {
     private Long idAttempt;
     private String examName;
     private String examLevel;
@@ -19,4 +20,5 @@ public class SubmitResponse {
     private String totalTime;
     // mapping số câu đúng Long soCauDung = (long)(score / 10) * getCorrectAnswer.size();
     private String totalCorrectAnswer;
+    private List<QuestionReviewResponse> question;
 }

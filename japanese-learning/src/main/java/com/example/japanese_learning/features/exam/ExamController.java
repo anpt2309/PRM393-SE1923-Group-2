@@ -17,7 +17,6 @@ import java.util.List;
 @CrossOrigin(origins = "*")
 public class ExamController {
     private final ExamService examService;
-
     @GetMapping("/exams")
     public ApiResponse<Page<ExamResponse>> getExam(@RequestParam(required = false) List<String> levelExam,
             @RequestParam(required = false) List<Integer> difficultyExam,

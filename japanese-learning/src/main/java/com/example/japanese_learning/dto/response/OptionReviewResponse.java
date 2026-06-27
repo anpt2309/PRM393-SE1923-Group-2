@@ -7,7 +7,8 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ExamPartResponse {
-    private String partName;
-    private String partDuration;
+public class OptionReviewResponse {
+    private Long optionId;
+    private String content;
+    private Boolean isCorrect;
 }

@@ -115,7 +115,5 @@ Khi thực hiện sửa lỗi hoặc nâng cấp tính năng cho dự án này, 
 ## 5. Hướng Dẫn Dành Cho AI Khi Hỗ Trợ Fix Bug / Viết Code
 
 Để sửa lỗi hoặc viết code đúng phong cách của dự án này, vui lòng tuân thủ các quy tắc sau:
-*   **Không tự tiện dùng Fake Data**: Mọi thông tin hiển thị trên màn hình liên quan đến Đề thi (`Exam`, `ExamDetail`) đều phải bắt nguồn từ các trường dữ liệu thật trả về từ Backend API. Nếu API không trả về một trường dữ liệu nhất định, hãy ẩn Widget hiển thị trường đó đi thay vì gán giá trị mặc định (fake).
 *   **Tuân thủ Luồng MVVM**: Không gọi trực tiếp `http` hay gọi trực tiếp Service từ bên trong View. Hãy viết API trong `Service` -> Khai báo qua `Repository` -> Gọi và xử lý logic cập nhật State trong `ViewModel` -> Cập nhật giao diện trong `View`.
 *   **Sử dụng GoRouter**: Ưu tiên điều hướng bằng `context.push()` hoặc `context.go()` thông qua hệ thống route được định nghĩa tại `app_router.dart`. Hạn chế tối đa việc sử dụng trực tiếp các phương thức đẩy Navigator cũ (`Navigator.push`).
-*   **Kiểm tra Phân Tích Code**: Sau khi thực hiện bất cứ chỉnh sửa nào, hãy đảm bảo chạy lệnh phân tích mã nguồn (`flutter analyze`) để loại bỏ các cảnh báo (warnings) hoặc lỗi cú pháp (errors) không đáng có.

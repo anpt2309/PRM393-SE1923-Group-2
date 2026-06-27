@@ -56,8 +56,13 @@ public interface ExamMapping {
 
     @Named("definedPrice")
     default String definedPrice(Double price) {
-        DecimalFormat formatter = new DecimalFormat("#,###");
-        String formatted = formatter.format(price);
+        String formatted = "";
+        if(price != 0){
+            DecimalFormat formatter = new DecimalFormat("#,###");
+            formatted = formatter.format(price);
+        }else{
+            formatted = "miễn phí";
+        }
         return formatted;
     }
 

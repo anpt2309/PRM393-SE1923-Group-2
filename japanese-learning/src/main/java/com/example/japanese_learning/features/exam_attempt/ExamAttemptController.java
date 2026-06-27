@@ -2,10 +2,7 @@ package com.example.japanese_learning.features.exam_attempt;
 
 import com.example.japanese_learning.dto.request.AnswerRequest;
 import com.example.japanese_learning.dto.request.ExamAttemptRequest;
-import com.example.japanese_learning.dto.response.ApiResponse;
-import com.example.japanese_learning.dto.response.ExamAttemptResponse;
-import com.example.japanese_learning.dto.response.QuestionResponse;
-import com.example.japanese_learning.dto.response.SubmitResponse;
+import com.example.japanese_learning.dto.response.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,6 +10,7 @@ import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class ExamAttemptController {
     private final ExamAttemptService examAttemptService;
 
@@ -27,8 +25,8 @@ public class ExamAttemptController {
     }
 
     @GetMapping("/exams/attempt/{ids}")
-    public ApiResponse<List<QuestionResponse>> getQuestion(@PathVariable(name = "ids") Long examId) {
-        ApiResponse<List<QuestionResponse>> apiResponse = ApiResponse.<List<QuestionResponse>>builder()
+    public ApiResponse<List<ExamPartAttemptResponse>> getQuestion(@PathVariable(name = "ids") Long examId) {
+        ApiResponse<List<ExamPartAttemptResponse>> apiResponse = ApiResponse.<List<ExamPartAttemptResponse>>builder()
                 .id(200)
                 .message("Danh sách câu hỏi")
                 .data(examAttemptService.getQuestion(examId))

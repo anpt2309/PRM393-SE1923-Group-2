@@ -1,11 +1,9 @@
 package com.example.japanese_learning.features.exam_attempt.pattern.impl;
 
 import com.example.japanese_learning.dto.request.AnswerRequest;
+import com.example.japanese_learning.dto.response.ExamPartAttemptResponse;
 import com.example.japanese_learning.entity.account.User;
-import com.example.japanese_learning.entity.exam.Exam;
-import com.example.japanese_learning.entity.exam.ExamAttempt;
-import com.example.japanese_learning.entity.exam.Option;
-import com.example.japanese_learning.entity.exam.StudentAnswer;
+import com.example.japanese_learning.entity.exam.*;
 import com.example.japanese_learning.enums.AttemptStatus;
 import com.example.japanese_learning.enums.ExamType;
 import com.example.japanese_learning.features.exam_attempt.pattern.strategy.ExamStrategy;
@@ -92,12 +90,14 @@ public class JLPTStrategy implements ExamStrategy {
 
     @Override
     public ExamAttempt submitExam(ExamAttempt examAttempt, Exam existingExam) {
+        // questionID && optionId student chọn
         List<StudentAnswerProjection> studentAnswer = studentAnswerRepository.findByAttempt_Id(examAttempt.getId());
         Map<Long, Long> answerMap = new HashMap<>();
         for (StudentAnswerProjection stu : studentAnswer) {
             answerMap.put(stu.getQuestionId(), stu.getOptionId());
         }
         Map<Long, Long> correctAnswer = new HashMap<>();
+        // questionId && optionCorrect trong bảng Option
         List<OptionProjection> getCorrectAnswer = optionRepository.findAllQuestionByExam_Id(existingExam.getId());
         for (OptionProjection op : getCorrectAnswer) {
             correctAnswer.put(op.getQuestionId(), op.getOptionCorrectId());
@@ -112,8 +112,9 @@ public class JLPTStrategy implements ExamStrategy {
                 countCorrect++;
             }
         }
-        // Tính số câu hỏi trong đề
-        double score = (countCorrect / (double) getCorrectAnswer.size()) * 10;
+        // Tính số câu hỏi trong đề - mỗi câu đúng 12 điểm
+        double score = countCorrect * 12;
+        // double score = (countCorrect / (double) getCorrectAnswer.size()) * 10;
         examAttempt.setSubmitTime(LocalDateTime.now());
         examAttempt.setStatus(AttemptStatus.SUBMITTED);
         examAttempt.setCurrentPart(null);

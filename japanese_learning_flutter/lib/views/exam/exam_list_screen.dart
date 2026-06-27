@@ -358,6 +358,12 @@ class _ExamListScreenState extends State<ExamListScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: cobaltBlue),
+          onPressed: () {
+            context.go('/');
+          },
+        ),
         title: const Text(
           'Đề thi & Luyện tập',
           style: TextStyle(

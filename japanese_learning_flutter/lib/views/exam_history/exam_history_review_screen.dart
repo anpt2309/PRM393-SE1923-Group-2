@@ -1,32 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-
-class ReviewQuestion {
-  final int number;
-  final String title;
-  final String questionText;
-  final List<String> options;
-  final int userSelectedIndex;
-  final int correctIndex;
-  final String explanation;
-  final List<Map<String, String>> comments;
-
-  ReviewQuestion({
-    required this.number,
-    required this.title,
-    required this.questionText,
-    required this.options,
-    required this.userSelectedIndex,
-    required this.correctIndex,
-    required this.explanation,
-    required this.comments,
-  });
-
-  bool get isCorrect => userSelectedIndex == correctIndex;
-}
+import '../../data/models/exam_history_detail.dart';
+import '../../data/repository/exam_repository.dart';
 
 class ExamHistoryReviewScreen extends StatefulWidget {
-  const ExamHistoryReviewScreen({super.key});
+  final int? attemptId;
+  const ExamHistoryReviewScreen({super.key, this.attemptId});
 
   @override
   State<ExamHistoryReviewScreen> createState() => _ExamHistoryReviewScreenState();
@@ -47,13 +26,58 @@ class _ExamHistoryReviewScreenState extends State<ExamHistoryReviewScreen> {
   final Map<int, List<Map<String, String>>> _dynamicComments = {};
   final Map<int, TextEditingController> _commentControllers = {};
 
-  // Mock data of 30 review questions
-  late final List<ReviewQuestion> _reviewQuestions;
+  final ExamRepository _repository = ExamRepository();
+  List<ReviewQuestion> _reviewQuestions = [];
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  double _totalScore = 0.0;
+  String _totalTime = '00:00';
+  String _totalCorrectAnswer = '0/0';
+  double _completionRate = 0.0;
+  String _examName = 'Kết Quả Bài Thi';
 
   @override
   void initState() {
     super.initState();
-    _initMockQuestions();
+    _loadHistoryDetail();
+  }
+
+  Future<void> _loadHistoryDetail() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    try {
+      final attemptId = widget.attemptId ?? 1;
+      final detail = await _repository.getExamHistoryDetail(attemptId);
+      setState(() {
+        _examName = detail.examName;
+        _totalScore = detail.totalScore;
+        _totalTime = detail.totalTime;
+        _totalCorrectAnswer = detail.totalCorrectAnswer;
+        _reviewQuestions = detail.questions;
+
+        double rate = 0.0;
+        if (detail.totalCorrectAnswer.contains('/')) {
+          final parts = detail.totalCorrectAnswer.split('/');
+          if (parts.length >= 2) {
+            final correct = double.tryParse(parts[0]) ?? 0.0;
+            final total = double.tryParse(parts[1]) ?? 1.0;
+            if (total > 0) {
+              rate = correct / total;
+            }
+          }
+        }
+        _completionRate = rate;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -64,92 +88,7 @@ class _ExamHistoryReviewScreenState extends State<ExamHistoryReviewScreen> {
     super.dispose();
   }
 
-  void _initMockQuestions() {
-    // We will generate 30 questions matching the JLPT test format
-    _reviewQuestions = List.generate(30, (index) {
-      final qNum = index + 1;
-      String title = '';
-      String questionText = '';
-      List<String> options = [];
-      int correctIdx = 0;
-      int userSelectedIdx = 0;
-      String explanationText = '';
 
-      if (qNum <= 10) {
-        title = 'Phần 1: Từ vựng (Vocabulary)';
-        if (qNum == 1) {
-          questionText = 'Chữ Hán của từ "nihon" (Nhật Bản) được viết như thế nào?';
-          options = ['A. 日本', 'B. 本日', 'C. 毎日', 'D. 日本語'];
-          correctIdx = 0;
-          userSelectedIdx = 0; // Correct
-          explanationText = 'Chữ "Nhật" (日 - mặt trời) kết hợp với chữ "Bản" (本 - gốc rễ, nguồn gốc) tạo thành "Nhật Bản" (日本 - đất nước mặt trời mọc).';
-        } else if (qNum == 2) {
-          questionText = 'Cách đọc Hiragana chính xác của chữ Hán "先生" (Giáo viên) là gì?';
-          options = ['A. せんせい', 'B. がくせい', 'C. けんせい', 'D. てんせい'];
-          correctIdx = 0;
-          userSelectedIdx = 1; // Incorrect (selected B: がくせい)
-          explanationText = 'Chữ "Tiên" (先 - trước) đọc là せん, chữ "Sinh" (生 - sinh ra) đọc là sei. Hợp lại là せんせい (sensei). Còn がくせい là Học Sinh (学生).';
-        } else if (qNum == 3) {
-          questionText = 'Chữ Hán "水" (Nước) có âm đọc Kunyomi là gì?';
-          options = ['A. みず', 'B. おかね', 'C. つくえ', 'D. いす'];
-          correctIdx = 0;
-          userSelectedIdx = 0; // Correct
-          explanationText = 'Âm đọc thuần Nhật (Kunyomi) của chữ 水 (Thủy) là みず (mizu). Âm Onyomi đọc là すい trong từ 水泳 (swimming - すいえい).';
-        } else {
-          questionText = 'Từ vựng Kanji tương ứng cho câu hỏi số $qNum';
-          options = ['A. Đáp án đúng', 'B. Đáp án nhiễu 1', 'C. Đáp án nhiễu 2', 'D. Đáp án nhiễu 3'];
-          correctIdx = 0;
-          userSelectedIdx = (qNum % 3 == 0) ? 1 : 0; // Mix correct/incorrect
-          explanationText = 'Giải thích chi tiết cho câu hỏi từ vựng số $qNum: Đáp án chính xác là A theo ngữ cảnh ngữ nghĩa trong kỳ thi JLPT N3.';
-        }
-      } else if (qNum <= 20) {
-        title = 'Phần 2: Ngữ pháp & Đọc hiểu';
-        if (qNum == 11) {
-          questionText = 'Chọn trợ từ thích hợp điền vào chỗ trống:\nわたしは毎日日本語___ 勉強します。';
-          options = ['A. を', 'B. が', 'C. に', 'D. で'];
-          correctIdx = 0;
-          userSelectedIdx = 0; // Correct
-          explanationText = 'Trợ từ "を" (wo) chỉ đối tượng trực tiếp tác động của ngoại động từ 勉強します (học).';
-        } else if (qNum == 12) {
-          questionText = 'Chọn trợ từ thích hợp điền vào chỗ trống:\nここに本___ あります。';
-          options = ['A. が', 'B. を', 'C. に', 'D. は'];
-          correctIdx = 0;
-          userSelectedIdx = 0; // Correct
-          explanationText = 'Cấu trúc chỉ sự tồn tại của đồ vật vô tri vô giác: [Địa điểm] に [Vật] が あります. Do đó cần dùng trợ từ "...".';
-        } else {
-          questionText = 'Cấu trúc ngữ pháp / đoạn văn ngắn số $qNum';
-          options = ['A. Đáp án đúng', 'B. Đáp án nhiễu A', 'C. Đáp án nhiễu B', 'D. Đáp án nhiễu C'];
-          correctIdx = 0;
-          userSelectedIdx = (qNum % 2 == 0) ? 0 : 2; // Mix correct/incorrect
-          explanationText = 'Giải thích ngữ pháp câu số $qNum: Dùng trợ từ/công thức liên kết đúng ngữ pháp sơ cấp/trung cấp Nhật ngữ.';
-        }
-      } else {
-        title = 'Phần 3: Nghe hiểu (Listening)';
-        questionText = 'Nội dung câu hỏi nghe hiểu số $qNum';
-        options = ['A. Đáp án đúng', 'B. Đáp án nhiễu 1', 'C. Đáp án nhiễu 2', 'D. Đáp án nhiễu 3'];
-        correctIdx = 0;
-        userSelectedIdx = (qNum % 4 == 0) ? 3 : 0; // Mix correct/incorrect
-        explanationText = 'Đoạn băng nói về thông tin cuộc hẹn. Từ khóa nằm ở phần sau khi nhân vật nam đồng ý thay đổi kế hoạch sang phương án A.';
-      }
-
-      // Default comments
-      final initialComments = [
-        {'user': 'Linh Trần', 'content': 'Câu này lúc thi em phân vân giữa A và B, may mà chọn đúng.'},
-        {'user': 'Minh Nhật', 'content': 'Nhờ phần giải thích rõ ràng này mới vỡ lẽ ra cách dùng trợ từ.'},
-      ];
-
-      return ReviewQuestion(
-        number: qNum,
-        title: title,
-        questionText: questionText,
-        options: options,
-        userSelectedIndex: userSelectedIdx,
-        correctIndex: correctIdx,
-        explanation: explanationText,
-        comments: initialComments,
-      );
-    });
-  }
 
   // Toggle state helper
   void _toggleExplanation(int index) {
@@ -556,11 +495,89 @@ class _ExamHistoryReviewScreenState extends State<ExamHistoryReviewScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: bgLight,
+        appBar: AppBar(
+          backgroundColor: primaryCobalt,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: const Text(
+            'Đang tải kết quả...',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(color: primaryCobalt),
+        ),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Scaffold(
+        backgroundColor: bgLight,
+        appBar: AppBar(
+          backgroundColor: primaryCobalt,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: const Text(
+            'Lỗi tải kết quả',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.cloud_off, size: 48, color: Colors.redAccent),
+                const SizedBox(height: 12),
+                const Text(
+                  'Không thể tải chi tiết kết quả bài thi',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textDark),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _errorMessage!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 13, color: textLight),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: _loadHistoryDetail,
+                  icon: const Icon(Icons.refresh, color: Colors.white, size: 16),
+                  label: const Text('Thử lại', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryCobalt,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     // Stats calculation
-    int totalQuestions = _reviewQuestions.length;
-    int correctCount = _reviewQuestions.where((q) => q.isCorrect).length;
-    double score = (correctCount / totalQuestions) * 180; // 180 score scale
-    double completionRate = correctCount / totalQuestions;
+    int totalQuestions = 0;
+    int correctCount = 0;
+    if (_totalCorrectAnswer.contains('/')) {
+      final parts = _totalCorrectAnswer.split('/');
+      if (parts.length >= 2) {
+        correctCount = int.tryParse(parts[0].trim()) ?? 0;
+        totalQuestions = int.tryParse(parts[1].trim()) ?? 0;
+      }
+    }
+    if (totalQuestions == 0) {
+      totalQuestions = _reviewQuestions.length;
+      correctCount = _reviewQuestions.where((q) => q.isCorrect).length;
+    }
 
     return Scaffold(
       backgroundColor: bgLight,
@@ -571,9 +588,9 @@ class _ExamHistoryReviewScreenState extends State<ExamHistoryReviewScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'Kết Quả Bài Thi thử',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+        title: Text(
+          _examName,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
         ),
       ),
       body: Column(
@@ -586,7 +603,7 @@ class _ExamHistoryReviewScreenState extends State<ExamHistoryReviewScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // 1. Top Exam Summary Card
-                  _buildSummaryCard(correctCount, totalQuestions, score, completionRate),
+                  _buildSummaryCard(correctCount, totalQuestions, _totalScore, _completionRate),
                   const SizedBox(height: 24),
 
                   // Header of list
@@ -686,7 +703,7 @@ class _ExamHistoryReviewScreenState extends State<ExamHistoryReviewScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       _buildSummaryStatItem('Đúng', '$correctCount / $totalQuestions'),
-                      _buildSummaryStatItem('Thời gian', '45:12'),
+                      _buildSummaryStatItem('Thời gian', _totalTime),
                     ],
                   )
                 ],

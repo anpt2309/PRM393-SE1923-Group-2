@@ -19,7 +19,7 @@ public interface OptionRepository extends JpaRepository<Option, Long> {
 
     // Fix: phải lấy ra toàn bộ câu hỏi theo đề thi vì có câu hỏi student không làm
     // => tính điểm sai
-    // Bug: do bên mysql để tên là question_id nên dùng JPQL không mapping được => dùng
+    // Bug: do bên mysql để tên là question_id nên dùng JPQL không mapping được => dùng SQL NATIVE
     @Query(value = "SELECT op.question_id AS questionId, op.id AS optionCorrectId " +
             "FROM options op " +
             "INNER JOIN questions qes ON op.question_id = qes.id " +

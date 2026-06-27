@@ -50,6 +50,9 @@ public class Exam {
     @Column(name = "user_count")
     private Long userCount;
 
+    @Column(name = "total_question")
+    private Long totalQuestion;
+
     @OneToMany(mappedBy = "exam", fetch = FetchType.LAZY)
     List<ExamPart> examParts = new ArrayList<>();
 }
