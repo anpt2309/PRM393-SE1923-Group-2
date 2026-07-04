@@ -1,6 +1,6 @@
 import '../models/exam.dart';
 import '../models/exam_detail.dart';
-import '../service/exam_service.dart';
+import '../services/exam_service.dart';
 
 /// Repository danh sách và chi tiết đề thi.
 /// Xử lý logic lọc/sắp xếp phía client và ủy thác HTTP call cho ExamService.

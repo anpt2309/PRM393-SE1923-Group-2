@@ -4,8 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/models/exam_attempt.dart';
-import '../data/repository/exam_attempt_repository.dart';
-import '../data/repository/exam_repository.dart';
+import '../data/repositories/exam_attempt_repository.dart';
+import '../data/repositories/exam_repository.dart';
 
 // ─────────────────────────────────────────────────────────────
 // REPOSITORY PROVIDERS

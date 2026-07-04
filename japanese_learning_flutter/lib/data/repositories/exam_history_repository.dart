@@ -1,7 +1,7 @@
 import '../models/exam_history.dart';
 import '../models/exam_history_detail.dart';
 import '../models/comment_response.dart';
-import '../service/exam_history_service.dart';
+import '../services/exam_history_service.dart';
 
 /// Repository lịch sử bài thi: điều phối lấy lịch sử, xem lại chi tiết,
 /// bình luận, báo lỗi câu hỏi và gửi tin nhắn AI Tutor.

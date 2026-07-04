@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../data/repository/auth_repository.dart';
+import '../data/repositories/auth_repository.dart';
 import '../data/models/auth_exception.dart';
 
 enum AuthStatus { idle, loading, success, error }

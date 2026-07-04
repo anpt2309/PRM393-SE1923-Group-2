@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../service/auth_service.dart';
+import '../services/auth_service.dart';
 
 /// Repository xác thực: lớp trung gian giữa AuthService và AuthViewModel.
 /// Chịu trách nhiệm điều phối và xử lý các nghiệp vụ liên quan đến tài khoản.

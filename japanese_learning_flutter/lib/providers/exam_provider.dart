@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/exam.dart';
-import '../data/repository/exam_repository.dart';
+import '../data/repositories/exam_repository.dart';
 
 // ─────────────────────────────────────────────────────────────
 // REPOSITORY PROVIDER

@@ -1,4 +1,4 @@
-import '../service/exam_attempt_service.dart';
+import '../services/exam_attempt_service.dart';
 
 /// Repository phiên làm bài thi: điều phối khởi tạo bài thi,
 /// lấy câu hỏi, auto-save và nộp bài.

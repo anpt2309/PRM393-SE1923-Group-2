@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/exam_history.dart';
 import '../data/models/exam_history_detail.dart';
 import '../data/models/comment_response.dart';
-import '../data/repository/exam_history_repository.dart';
+import '../data/repositories/exam_history_repository.dart';
 
 // ─────────────────────────────────────────────────────────────
 // REPOSITORY PROVIDER

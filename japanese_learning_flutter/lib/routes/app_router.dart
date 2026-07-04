@@ -18,7 +18,7 @@ import 'package:japanese_learning/views/flashcard/history_flashcard_quiz.dart';
 import 'package:japanese_learning/views/flashcard/my_sets_screen.dart';
 import 'package:japanese_learning/views/flashcard/quiz_screen.dart';
 import 'package:japanese_learning/views/flashcard/study_set_screen.dart';
-import 'package:japanese_learning/views/home/HomeScreen.dart';
+import 'package:japanese_learning/views/home/home_screen.dart';
 import 'package:japanese_learning/views/payment/checkout_screen.dart';
 import 'package:japanese_learning/views/payment/payment_history_screen.dart';
 import 'package:japanese_learning/views/rewards/reward_shop_screen.dart';

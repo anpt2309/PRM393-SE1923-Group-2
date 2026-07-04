@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../data/models/exam.dart';
 import '../../data/models/exam_detail.dart';
-import '../../data/repository/exam_repository.dart';
+import '../../data/repositories/exam_repository.dart';
 
 class ExamDetailScreen extends StatefulWidget {
   final Exam exam;
