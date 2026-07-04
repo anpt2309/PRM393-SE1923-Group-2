@@ -1,25 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:japanese_learning/main.dart'; // Đảm bảo import để lấy cấu hình appSettings toàn cục
-
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../providers/app_setting_provider.dart';
 import '../../../widgets/app_bar.dart';
 
 // Khai báo đầy đủ các trạng thái giao diện hiển thị tuần tự
 enum SecurityView {
   defaultView,
   changePasswordView,
-  resetPasswordView,    // Bước 1: Nhập Email để nhận mã OTP
-  verifyOtpView,        // Bước 2: Nhập mã OTP + Có nút Gửi lại mã & Tiếp theo
+  resetPasswordView, // Bước 1: Nhập Email để nhận mã OTP
+  verifyOtpView, // Bước 2: Nhập mã OTP + Có nút Gửi lại mã & Tiếp theo
   createNewPasswordView // Bước 3: Nhập mật khẩu mới (Có con mắt ẩn hiện)
 }
 
-class SecurityScreen extends StatefulWidget {
+class SecurityScreen extends ConsumerStatefulWidget {
   const SecurityScreen({super.key});
 
   @override
-  State<SecurityScreen> createState() => _SecurityScreenState();
+  ConsumerState<SecurityScreen> createState() => _SecurityScreenState();
 }
 
-class _SecurityScreenState extends State<SecurityScreen> {
+class _SecurityScreenState extends ConsumerState<SecurityScreen> {
   // Trạng thái màn hình hiện tại
   SecurityView _currentView = SecurityView.defaultView;
 
@@ -77,129 +77,172 @@ class _SecurityScreenState extends State<SecurityScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: appSettings,
-      builder: (context, child) {
-        final isCustomDark = appSettings.isCustomDarkColor;
-        final double scale = appSettings.textScaleFactor;
+    final settings = ref.watch(appSettingProvider);
+    final isCustomDark = settings.isDarkMode;
+    final double scale = settings.textScaleFactor;
 
-        // Thiết lập bảng màu động đồng bộ với main.dart và app_bar.dart
-        final textColor = isCustomDark ? Colors.white : Colors.black87;
-        final subTextColor = isCustomDark ? Colors.white60 : Colors.black45;
-        final cardColor = isCustomDark ? const Color(0xFF1E1E1E) : Colors.white;
-        final dividerColor = isCustomDark ? Colors.white10 : const Color(0xFFF1F3F5);
-        final inputFillColor = isCustomDark ? const Color(0xFF2C2C2C) : const Color(0xFFF1F3F5);
+    // Thiết lập bảng màu động đồng bộ với main.dart và app_bar.dart
+    final textColor = isCustomDark ? Colors.white : Colors.black87;
+    final subTextColor = isCustomDark ? Colors.white60 : Colors.black45;
+    final cardColor = isCustomDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final dividerColor =
+        isCustomDark ? Colors.white10 : const Color(0xFFF1F3F5);
+    final inputFillColor =
+        isCustomDark ? const Color(0xFF2C2C2C) : const Color(0xFFF1F3F5);
 
-        return Scaffold(
-          backgroundColor: isCustomDark ? const Color(0xFF121212) : const Color(0xFFF8F9FA),
-          appBar: CustomAppBar(
-            title: _currentView == SecurityView.changePasswordView
-                ? 'Đổi mật khẩu'
-                : _currentView != SecurityView.defaultView
+    return Scaffold(
+      backgroundColor:
+          isCustomDark ? const Color(0xFF121212) : const Color(0xFFF8F9FA),
+      appBar: CustomAppBar(
+        title: _currentView == SecurityView.changePasswordView
+            ? 'Đổi mật khẩu'
+            : _currentView != SecurityView.defaultView
                 ? 'Lấy lại mật khẩu'
                 : 'Bảo mật & mật khẩu',
-            centerTitle: true,
-            onBackPressed: _handleBackAction,
-          ),
-          body: WillPopScope(
-            onWillPop: () async {
-              if (_currentView != SecurityView.defaultView) {
-                _handleBackAction();
-                return false;
-              }
-              return true;
-            },
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
-              child: _buildCurrentBody(isCustomDark, textColor, subTextColor, cardColor, dividerColor, inputFillColor, scale),
-            ),
-          ),
-        );
-      },
+        centerTitle: true,
+        onBackPressed: _handleBackAction,
+      ),
+      body: WillPopScope(
+        onWillPop: () async {
+          if (_currentView != SecurityView.defaultView) {
+            _handleBackAction();
+            return false;
+          }
+          return true;
+        },
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 250),
+          child: _buildCurrentBody(isCustomDark, textColor, subTextColor,
+              cardColor, dividerColor, inputFillColor, scale),
+        ),
+      ),
     );
   }
 
-  Widget _buildCurrentBody(bool isDark, Color textColor, Color subTextColor, Color cardColor, Color dividerColor, Color inputFillColor, double scale) {
+  Widget _buildCurrentBody(
+      bool isDark,
+      Color textColor,
+      Color subTextColor,
+      Color cardColor,
+      Color dividerColor,
+      Color inputFillColor,
+      double scale) {
     switch (_currentView) {
       case SecurityView.changePasswordView:
-        return _buildChangePasswordForm(isDark, textColor, subTextColor, cardColor, inputFillColor);
+        return _buildChangePasswordForm(
+            isDark, textColor, subTextColor, cardColor, inputFillColor);
       case SecurityView.resetPasswordView:
         return _buildResetPasswordForm(isDark, textColor, subTextColor, inputFillColor);
       case SecurityView.verifyOtpView:
         return _buildVerifyOtpForm(isDark, textColor, subTextColor, inputFillColor);
       case SecurityView.createNewPasswordView:
-        return _buildCreateNewPasswordForm(isDark, textColor, subTextColor, inputFillColor);
+        return _buildCreateNewPasswordForm(
+            isDark, textColor, subTextColor, inputFillColor);
       case SecurityView.defaultView:
       default:
-        return _buildDefaultMenu(isDark, textColor, subTextColor, cardColor, dividerColor, scale);
+        return _buildDefaultMenu(
+            isDark, textColor, subTextColor, cardColor, dividerColor, scale);
     }
   }
 
   // ==========================================
   // 1. GIAO DIỆN MENU BAN ĐẦU
   // ==========================================
-  Widget _buildDefaultMenu(bool isDark, Color textColor, Color subTextColor, Color cardColor, Color dividerColor, double scale) {
+  Widget _buildDefaultMenu(bool isDark, Color textColor, Color subTextColor,
+      Color cardColor, Color dividerColor, double scale) {
     return ListView(
       key: const ValueKey('DefaultMenuKey'),
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
       children: [
-        Text('Cài đặt bảo mật', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: subTextColor)),
+        Text('Cài đặt bảo mật',
+            style: TextStyle(
+                fontSize: 13, fontWeight: FontWeight.bold, color: subTextColor)),
         const SizedBox(height: 8),
-
         Card(
           color: cardColor,
           elevation: 0,
           margin: EdgeInsets.zero,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: isDark ? Colors.white10 : Colors.grey.shade100),
+            side: BorderSide(
+                color: isDark ? Colors.white10 : Colors.grey.shade100),
           ),
           child: Column(
             children: [
               ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-                leading: Icon(Icons.lock_outline, color: isDark ? Colors.white70 : Colors.black54, size: 22 * scale),
-                title: Text('Đổi mật khẩu', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: textColor)),
-                subtitle: Text('Thay đổi mật khẩu đăng nhập định kỳ', style: TextStyle(fontSize: 12, color: subTextColor)),
-                trailing: Icon(Icons.arrow_forward_ios, size: 13, color: isDark ? Colors.white30 : Colors.black26),
-                onTap: () => setState(() => _currentView = SecurityView.changePasswordView),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                leading: Icon(Icons.lock_outline,
+                    color: isDark ? Colors.white70 : Colors.black54,
+                    size: 22 * scale),
+                title: Text('Đổi mật khẩu',
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: textColor)),
+                subtitle: Text('Thay đổi mật khẩu đăng nhập định kỳ',
+                    style: TextStyle(fontSize: 12, color: subTextColor)),
+                trailing: Icon(Icons.arrow_forward_ios,
+                    size: 13, color: isDark ? Colors.white30 : Colors.black26),
+                onTap: () => setState(
+                    () => _currentView = SecurityView.changePasswordView),
               ),
               Divider(height: 1, color: dividerColor, indent: 54),
-
               ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-                leading: Icon(Icons.lock_open_outlined, color: isDark ? Colors.white70 : Colors.black54, size: 22 * scale),
-                title: Text('Lấy lại mật khẩu', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: textColor)),
-                subtitle: Text('Khôi phục mật khẩu qua Email khi quên', style: TextStyle(fontSize: 12, color: subTextColor)),
-                trailing: Icon(Icons.arrow_forward_ios, size: 13, color: isDark ? Colors.white30 : Colors.black26),
-                onTap: () => setState(() => _currentView = SecurityView.resetPasswordView),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                leading: Icon(Icons.lock_open_outlined,
+                    color: isDark ? Colors.white70 : Colors.black54,
+                    size: 22 * scale),
+                title: Text('Lấy lại mật khẩu',
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: textColor)),
+                subtitle: Text('Khôi phục mật khẩu qua Email khi quên',
+                    style: TextStyle(fontSize: 12, color: subTextColor)),
+                trailing: Icon(Icons.arrow_forward_ios,
+                    size: 13, color: isDark ? Colors.white30 : Colors.black26),
+                onTap: () => setState(
+                    () => _currentView = SecurityView.resetPasswordView),
               ),
             ],
           ),
         ),
         const SizedBox(height: 28),
-
-        Text('Thông tin hoạt động', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: subTextColor)),
+        Text('Thông tin hoạt động',
+            style: TextStyle(
+                fontSize: 13, fontWeight: FontWeight.bold, color: subTextColor)),
         const SizedBox(height: 8),
-
         Card(
           color: cardColor,
           elevation: 0,
           margin: EdgeInsets.zero,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: isDark ? Colors.white10 : Colors.grey.shade100),
+            side: BorderSide(
+                color: isDark ? Colors.white10 : Colors.grey.shade100),
           ),
           child: Column(
             children: [
               ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-                leading: Icon(Icons.app_registration, color: isDark ? Colors.white70 : Colors.black54, size: 22 * scale),
-                title: Text('Ngày đăng ký tài khoản', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: textColor)),
-                trailing: Text(dateCreated, style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.black54, fontSize: 13)),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                leading: Icon(Icons.app_registration,
+                    color: isDark ? Colors.white70 : Colors.black54,
+                    size: 22 * scale),
+                title: Text('Ngày đăng ký tài khoản',
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: textColor)),
+                trailing: Text(dateCreated,
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white70 : Colors.black54,
+                        fontSize: 13)),
               ),
               Divider(height: 1, color: dividerColor, indent: 54),
-
               Theme(
                 data: Theme.of(context).copyWith(
                   dividerColor: Colors.transparent,
@@ -210,8 +253,14 @@ class _SecurityScreenState extends State<SecurityScreen> {
                 ),
                 child: ExpansionTile(
                   tilePadding: const EdgeInsets.symmetric(horizontal: 16),
-                  leading: Icon(Icons.history, color: isDark ? Colors.white70 : Colors.black54, size: 22 * scale),
-                  title: Text('Lịch sử đăng nhập', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: textColor)),
+                  leading: Icon(Icons.history,
+                      color: isDark ? Colors.white70 : Colors.black54,
+                      size: 22 * scale),
+                  title: Text('Lịch sử đăng nhập',
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: textColor)),
                   children: [
                     Container(
                       padding: const EdgeInsets.only(bottom: 12),
@@ -224,14 +273,19 @@ class _SecurityScreenState extends State<SecurityScreen> {
                           return Column(
                             children: [
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 10.0),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 24.0, vertical: 10.0),
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
                                     Text(
                                       '${item['time']}',
-                                      style: TextStyle(fontSize: 11, color: subTextColor, height: 1.0),
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: subTextColor,
+                                          height: 1.0),
                                     ),
                                     Text(
                                       item['status']!,
@@ -249,7 +303,8 @@ class _SecurityScreenState extends State<SecurityScreen> {
                               ),
                               if (index < loginHistory.length - 1)
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 24),
                                   child: Divider(height: 1, color: dividerColor),
                                 ),
                             ],
@@ -270,7 +325,8 @@ class _SecurityScreenState extends State<SecurityScreen> {
   // ==========================================
   // 2. GIAO DIỆN: ĐỔI MẬT KHẨU
   // ==========================================
-  Widget _buildChangePasswordForm(bool isDark, Color textColor, Color subTextColor, Color cardColor, Color inputFillColor) {
+  Widget _buildChangePasswordForm(bool isDark, Color textColor, Color subTextColor,
+      Color cardColor, Color inputFillColor) {
     return ListView(
       key: const ValueKey('ChangePasswordKey'),
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
@@ -281,7 +337,8 @@ class _SecurityScreenState extends State<SecurityScreen> {
           margin: EdgeInsets.zero,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: isDark ? Colors.white10 : Colors.grey.shade100),
+            side: BorderSide(
+                color: isDark ? Colors.white10 : Colors.grey.shade100),
           ),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -294,7 +351,8 @@ class _SecurityScreenState extends State<SecurityScreen> {
                   icon: Icons.lock_outline,
                   isPasswordField: true,
                   obscure: _isOldPasswordObscure,
-                  onToggleVisibility: () => setState(() => _isOldPasswordObscure = !_isOldPasswordObscure),
+                  onToggleVisibility: () =>
+                      setState(() => _isOldPasswordObscure = !_isOldPasswordObscure),
                   isDark: isDark,
                   textColor: textColor,
                   subTextColor: subTextColor,
@@ -307,7 +365,8 @@ class _SecurityScreenState extends State<SecurityScreen> {
                   icon: Icons.lock_outline,
                   isPasswordField: true,
                   obscure: _isNewPasswordObscure,
-                  onToggleVisibility: () => setState(() => _isNewPasswordObscure = !_isNewPasswordObscure),
+                  onToggleVisibility: () =>
+                      setState(() => _isNewPasswordObscure = !_isNewPasswordObscure),
                   isDark: isDark,
                   textColor: textColor,
                   subTextColor: subTextColor,
@@ -320,7 +379,8 @@ class _SecurityScreenState extends State<SecurityScreen> {
                   icon: Icons.lock_outline,
                   isPasswordField: true,
                   obscure: _isConfirmPasswordObscure,
-                  onToggleVisibility: () => setState(() => _isConfirmPasswordObscure = !_isConfirmPasswordObscure),
+                  onToggleVisibility: () => setState(
+                      () => _isConfirmPasswordObscure = !_isConfirmPasswordObscure),
                   isDark: isDark,
                   textColor: textColor,
                   subTextColor: subTextColor,
@@ -337,11 +397,14 @@ class _SecurityScreenState extends State<SecurityScreen> {
             width: 120,
             child: ElevatedButton(
               onPressed: () {
-                if (_oldPasswordController.text.isEmpty || _newPasswordController.text.isEmpty || _confirmPasswordController.text.isEmpty) {
+                if (_oldPasswordController.text.isEmpty ||
+                    _newPasswordController.text.isEmpty ||
+                    _confirmPasswordController.text.isEmpty) {
                   _showFloatingMessage('Vui lòng nhập đầy đủ thông tin!', Colors.red);
                   return;
                 }
-                if (_newPasswordController.text != _confirmPasswordController.text) {
+                if (_newPasswordController.text !=
+                    _confirmPasswordController.text) {
                   _showFloatingMessage('Mật khẩu nhập lại không khớp!', Colors.red);
                   return;
                 }
@@ -356,9 +419,14 @@ class _SecurityScreenState extends State<SecurityScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1976D2),
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
               ),
-              child: const Text('Lưu', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500)),
+              child: const Text('Lưu',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500)),
             ),
           ),
         ),
@@ -369,13 +437,16 @@ class _SecurityScreenState extends State<SecurityScreen> {
   // ==========================================
   // 3. LẤY MẬT KHẨU - BƯỚC 1: NHẬP EMAIL
   // ==========================================
-  Widget _buildResetPasswordForm(bool isDark, Color textColor, Color subTextColor, Color inputFillColor) {
+  Widget _buildResetPasswordForm(
+      bool isDark, Color textColor, Color subTextColor, Color inputFillColor) {
     return ListView(
       key: const ValueKey('ResetPasswordKey'),
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
       children: [
         const SizedBox(height: 16),
-        Text('Lấy lại mật khẩu', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
+        Text('Lấy lại mật khẩu',
+            style: TextStyle(
+                fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
         const SizedBox(height: 12),
         Text(
           'Vui lòng nhập địa chỉ Email đăng ký tài khoản của bạn. Hệ thống sẽ gửi một mã xác thực để tạo lại mật khẩu mới.',
@@ -408,9 +479,14 @@ class _SecurityScreenState extends State<SecurityScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1976D2),
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
               ),
-              child: const Text('Gửi mã', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500)),
+              child: const Text('Gửi mã',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500)),
             ),
           ),
         ),
@@ -421,20 +497,27 @@ class _SecurityScreenState extends State<SecurityScreen> {
   // ==========================================
   // 4. LẤY MẬT KHẨU - BƯỚC 2: NHẬP OTP
   // ==========================================
-  Widget _buildVerifyOtpForm(bool isDark, Color textColor, Color subTextColor, Color inputFillColor) {
+  Widget _buildVerifyOtpForm(
+      bool isDark, Color textColor, Color subTextColor, Color inputFillColor) {
     return ListView(
       key: const ValueKey('VerifyOtpKey'),
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
       children: [
         const SizedBox(height: 16),
-        Text('Nhập mã xác thực', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
+        Text('Nhập mã xác thực',
+            style: TextStyle(
+                fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
         const SizedBox(height: 12),
         RichText(
           text: TextSpan(
             style: TextStyle(fontSize: 13, color: subTextColor, height: 1.4),
             children: [
-              const TextSpan(text: 'Vui lòng kiểm tra và nhập mã xác thực vừa được gửi tới Email: '),
-              TextSpan(text: _emailResetController.text, style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
+              const TextSpan(
+                  text:
+                      'Vui lòng kiểm tra và nhập mã xác thực vừa được gửi tới Email: '),
+              TextSpan(
+                  text: _emailResetController.text,
+                  style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
             ],
           ),
         ),
@@ -453,10 +536,15 @@ class _SecurityScreenState extends State<SecurityScreen> {
           alignment: Alignment.centerRight,
           child: TextButton.icon(
             onPressed: () {
-              _showFloatingMessage('Đã gửi lại mã xác thực mới tới Email của bạn!', Colors.orange);
+              _showFloatingMessage(
+                  'Đã gửi lại mã xác thực mới tới Email của bạn!', Colors.orange);
             },
             icon: const Icon(Icons.refresh, size: 16, color: Color(0xFF1976D2)),
-            label: const Text('Gửi lại mã', style: TextStyle(color: Color(0xFF1976D2), fontSize: 13, fontWeight: FontWeight.bold)),
+            label: const Text('Gửi lại mã',
+                style: TextStyle(
+                    color: Color(0xFF1976D2),
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold)),
           ),
         ),
         const SizedBox(height: 24),
@@ -467,7 +555,8 @@ class _SecurityScreenState extends State<SecurityScreen> {
             child: ElevatedButton(
               onPressed: () {
                 if (_otpController.text.trim().isEmpty) {
-                  _showFloatingMessage('Vui lòng điền mã xác thực OTP!', Colors.red);
+                  _showFloatingMessage(
+                      'Vui lòng điền mã xác thực OTP!', Colors.red);
                   return;
                 }
                 setState(() => _currentView = SecurityView.createNewPasswordView);
@@ -475,9 +564,14 @@ class _SecurityScreenState extends State<SecurityScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1976D2),
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
               ),
-              child: const Text('Tiếp theo', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500)),
+              child: const Text('Tiếp theo',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500)),
             ),
           ),
         ),
@@ -488,15 +582,20 @@ class _SecurityScreenState extends State<SecurityScreen> {
   // ==========================================
   // 5. LẤY MẬT KHẨU - BƯỚC 3: ĐẶT MẬT KHẨU MỚI
   // ==========================================
-  Widget _buildCreateNewPasswordForm(bool isDark, Color textColor, Color subTextColor, Color inputFillColor) {
+  Widget _buildCreateNewPasswordForm(
+      bool isDark, Color textColor, Color subTextColor, Color inputFillColor) {
     return ListView(
       key: const ValueKey('CreateNewPasswordKey'),
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
       children: [
         const SizedBox(height: 16),
-        Text('Tạo mật khẩu mới', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
+        Text('Tạo mật khẩu mới',
+            style: TextStyle(
+                fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
         const SizedBox(height: 12),
-        Text('Vui lòng khởi tạo mật khẩu mới cực kỳ bảo mật và nhập lại chính xác trường bên dưới.', style: TextStyle(fontSize: 13, color: subTextColor)),
+        Text(
+            'Vui lòng khởi tạo mật khẩu mới cực kỳ bảo mật và nhập lại chính xác trường bên dưới.',
+            style: TextStyle(fontSize: 13, color: subTextColor)),
         const SizedBox(height: 24),
         _buildFormTextField(
           hint: 'Mật khẩu mới (Tối thiểu 6 ký tự)',
@@ -504,7 +603,8 @@ class _SecurityScreenState extends State<SecurityScreen> {
           icon: Icons.lock_outline,
           isPasswordField: true,
           obscure: _isResetNewPasswordObscure,
-          onToggleVisibility: () => setState(() => _isResetNewPasswordObscure = !_isResetNewPasswordObscure),
+          onToggleVisibility: () => setState(
+              () => _isResetNewPasswordObscure = !_isResetNewPasswordObscure),
           isDark: isDark,
           textColor: textColor,
           subTextColor: subTextColor,
@@ -517,7 +617,8 @@ class _SecurityScreenState extends State<SecurityScreen> {
           icon: Icons.lock_outline,
           isPasswordField: true,
           obscure: _isResetConfirmPasswordObscure,
-          onToggleVisibility: () => setState(() => _isResetConfirmPasswordObscure = !_isResetConfirmPasswordObscure),
+          onToggleVisibility: () => setState(() =>
+              _isResetConfirmPasswordObscure = !_isResetConfirmPasswordObscure),
           isDark: isDark,
           textColor: textColor,
           subTextColor: subTextColor,
@@ -531,10 +632,13 @@ class _SecurityScreenState extends State<SecurityScreen> {
             child: ElevatedButton(
               onPressed: () {
                 String password = _resetNewPasswordController.text.trim();
-                String confirmPassword = _resetConfirmPasswordController.text.trim();
+                String confirmPassword =
+                    _resetConfirmPasswordController.text.trim();
 
                 if (password.isEmpty || confirmPassword.isEmpty) {
-                  _showFloatingMessage('Vui lòng điền đầy đủ thông tin mật khẩu mới!', Colors.red);
+                  _showFloatingMessage(
+                      'Vui lòng điền đầy đủ thông tin mật khẩu mới!',
+                      Colors.red);
                   return;
                 }
                 if (password != confirmPassword) {
@@ -542,7 +646,8 @@ class _SecurityScreenState extends State<SecurityScreen> {
                   return;
                 }
 
-                _showFloatingMessage('Đặt lại mật khẩu mới thành công!', Colors.green);
+                _showFloatingMessage(
+                    'Đặt lại mật khẩu mới thành công!', Colors.green);
                 _emailResetController.clear();
                 _otpController.clear();
                 _resetNewPasswordController.clear();
@@ -553,9 +658,14 @@ class _SecurityScreenState extends State<SecurityScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1976D2),
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
               ),
-              child: const Text('Lưu', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500)),
+              child: const Text('Lưu',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500)),
             ),
           ),
         ),
@@ -585,13 +695,15 @@ class _SecurityScreenState extends State<SecurityScreen> {
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.black26),
-        prefixIcon: Icon(icon, color: isDark ? Colors.white70 : Colors.black54, size: 22),
+        prefixIcon: Icon(icon,
+            color: isDark ? Colors.white70 : Colors.black54, size: 22),
         contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
         filled: true,
         fillColor: fillColor,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: isDark ? Colors.white10 : Colors.grey.shade300, width: 1),
+          borderSide: BorderSide(
+              color: isDark ? Colors.white10 : Colors.grey.shade300, width: 1),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -599,18 +711,21 @@ class _SecurityScreenState extends State<SecurityScreen> {
         ),
         suffixIcon: isPasswordField
             ? IconButton(
-          icon: Icon(
-            obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-            color: isDark ? Colors.white60 : Colors.black54,
-          ),
-          onPressed: onToggleVisibility,
-        )
+                icon: Icon(
+                  obscure
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  color: isDark ? Colors.white60 : Colors.black54,
+                ),
+                onPressed: onToggleVisibility,
+              )
             : null,
       ),
     );
   }
 
   void _showFloatingMessage(String message, Color color) {
+    if (!mounted) return;
     final double statusBarHeight = MediaQuery.of(context).padding.top;
     const double appBarHeight = 45.0;
 
@@ -626,7 +741,9 @@ class _SecurityScreenState extends State<SecurityScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: appSettings.isCustomDarkColor ? const Color(0xFF2C2C2C) : Colors.white,
+                color: ref.read(appSettingProvider).isDarkMode
+                    ? const Color(0xFF2C2C2C)
+                    : Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: color.withOpacity(0.5), width: 1),
                 boxShadow: [
@@ -642,7 +759,9 @@ class _SecurityScreenState extends State<SecurityScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
-                    color == Colors.red ? Icons.error_outline_rounded : Icons.check_circle_rounded,
+                    color == Colors.red
+                        ? Icons.error_outline_rounded
+                        : Icons.check_circle_rounded,
                     color: color,
                     size: 20,
                   ),

@@ -1,16 +1,4 @@
-// lib/providers/app_setting_provider.dart
-//
-// Provider quản lý cấu hình giao diện toàn cục (Dark Mode, Font Size).
-// Mỗi màn hình dùng ref.watch(appSettingProvider) để tự động rebuild khi
-// người dùng thay đổi theme hoặc cỡ chữ trong màn hình Cài đặt.
-//
-// ⚠️  Lưu ý cho team: Singleton appSettings ở main.dart vẫn còn nguyên để
-// các màn hình cũ (account/...) hoạt động bình thường. Provider này là lớp
-// Riverpod mới dành cho các màn hình được refactor (HomeScreen, v.v.)
-// Hai lớp chia sẻ state thông qua cùng một instance AppSettingViewModel.
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:japanese_learning/main.dart'; // Import singleton appSettings
 
 // ─────────────────────────────────────────────────────────────
 // STATE CLASS
@@ -48,26 +36,32 @@ class AppSettingState {
 class AppSettingNotifier extends Notifier<AppSettingState> {
   @override
   AppSettingState build() {
-    // Đọc trạng thái ban đầu từ singleton (để đồng bộ nhất quán)
-    return AppSettingState(
-      isDarkMode: appSettings.isCustomDarkColor,
-      fontSizeLabel: appSettings.fontSizeLabel,
-      textScaleFactor: appSettings.textScaleFactor,
-    );
+    return const AppSettingState();
   }
 
-  /// Bật/tắt chế độ tối. Cập nhật cả Riverpod state và singleton gốc.
+  /// Bật/tắt chế độ tối.
   void toggleDarkMode(bool isDark) {
-    appSettings.toggleCustomColor(isDark); // cập nhật singleton để main.dart rebuild
     state = state.copyWith(isDarkMode: isDark);
   }
 
-  /// Thay đổi cỡ chữ. Cập nhật cả Riverpod state và singleton gốc.
+  /// Thay đổi cỡ chữ.
   void updateFontSize(String label) {
-    appSettings.updateFontSize(label); // cập nhật singleton để main.dart rebuild
+    double factor = 1.0;
+    switch (label) {
+      case 'Nhỏ':
+        factor = 0.85;
+        break;
+      case 'Lớn':
+        factor = 1.25;
+        break;
+      case 'Vừa':
+      default:
+        factor = 1.0;
+        break;
+    }
     state = state.copyWith(
       fontSizeLabel: label,
-      textScaleFactor: appSettings.textScaleFactor,
+      textScaleFactor: factor,
     );
   }
 }
@@ -81,5 +75,5 @@ class AppSettingNotifier extends Notifier<AppSettingState> {
 /// Các màn hình dùng: ref.read(appSettingProvider.notifier) để gọi action
 final appSettingProvider =
     NotifierProvider<AppSettingNotifier, AppSettingState>(
-  AppSettingNotifier.new,
-);
+      AppSettingNotifier.new,
+    );

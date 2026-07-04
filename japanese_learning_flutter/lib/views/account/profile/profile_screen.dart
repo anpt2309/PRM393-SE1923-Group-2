@@ -1,52 +1,75 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:japanese_learning/main.dart';
+import '../../../providers/app_setting_provider.dart';
+import '../../../providers/auth_provider.dart';
 import '../../../widgets/app_bar.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
-  // Hàm xử lý hiển thị Dialog Đăng xuất (Đã đồng bộ màu tối/sáng cục bộ)
-  void _handleLogout(BuildContext context, bool isCustomDark, Color blockColor, Color textColor) {
+  // Hàm xử lý hiển thị Dialog Đăng xuất
+  void _handleLogout(BuildContext context, WidgetRef ref, bool isCustomDark,
+      Color blockColor, Color textColor) {
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          backgroundColor: blockColor, // Tự động đổi màu nền popup theo chế độ tối/sáng
+          backgroundColor: blockColor,
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(
-              'Đăng xuất',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: textColor)
-          ),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Đăng xuất',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 18, color: textColor)),
           content: Text(
             'Bạn có chắc chắn muốn đăng xuất khỏi tài khoản này không?',
-            style: TextStyle(fontSize: 14, color: isCustomDark ? Colors.white60 : Colors.black54),
+            style: TextStyle(
+                fontSize: 14,
+                color: isCustomDark ? Colors.white60 : Colors.black54),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(dialogContext), // Đóng hộp thoại nếu hủy
-              child: Text(
-                  'Hủy',
-                  style: TextStyle(color: isCustomDark ? Colors.white38 : Colors.black38, fontWeight: FontWeight.w600)
-              ),
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text('Hủy',
+                  style: TextStyle(
+                      color: isCustomDark ? Colors.white38 : Colors.black38,
+                      fontWeight: FontWeight.w600)),
             ),
             TextButton(
               onPressed: () async {
-                Navigator.pop(dialogContext); // Đóng hộp thoại xác nhận trước
-
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Đã đăng xuất tài khoản thành công!'),
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                  );
-                  context.go('/login');
+                Navigator.pop(dialogContext);
+                try {
+                  await ref.read(authProvider.notifier).signOut();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content:
+                            const Text('Đã đăng xuất tài khoản thành công!'),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                      ),
+                    );
+                    context.go('/login');
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Đăng xuất thất bại: $e'),
+                        backgroundColor: Colors.red,
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                      ),
+                    );
+                  }
                 }
               },
-              child: const Text('Đăng xuất', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+              child: const Text('Đăng xuất',
+                  style: TextStyle(
+                      color: Colors.red, fontWeight: FontWeight.bold)),
             ),
           ],
         );
@@ -55,143 +78,138 @@ class ProfileScreen extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    // 🌟 TRẠM LẮNG NGHE: Tự động Rebuild giao diện khi gạt công tắc tối/sáng hoặc đổi cỡ chữ ở cài đặt
-    return ListenableBuilder(
-      listenable: appSettings,
-      builder: (context, child) {
-        final isCustomDark = appSettings.isCustomDarkColor;
-        final double scale = appSettings.textScaleFactor; // Tỷ lệ co giãn cho toàn bộ Icon hành tinh
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(appSettingProvider);
+    final isCustomDark = settings.isDarkMode;
+    final double scale = settings.textScaleFactor;
 
-        // =========================================================================
-        // 🔴 BẢNG MÀU ĐỘNG: Giữ nguyên cấu trúc biến màu cục bộ ban đầu của bạn
-        // =========================================================================
-        final backgroundColor = isCustomDark ? const Color(0xFF121212) : const Color(0xFFF8F9FA);
-        final blockColor = isCustomDark ? const Color(0xFF1E1E1E) : Colors.white; // Thay thế Colors.white gốc
-        final textColor = isCustomDark ? Colors.white.withValues(alpha: 0.9) : Colors.black.withValues(alpha: 0.8);
-        final appBarColor = isCustomDark ? const Color(0xFF1A1A1A) : Colors.white;
-        final iconColor = isCustomDark ? Colors.white70 : Colors.black.withValues(alpha: 0.7);
-        final arrowColor = isCustomDark ? Colors.white30 : Colors.black26;
+    final backgroundColor =
+        isCustomDark ? const Color(0xFF121212) : const Color(0xFFF8F9FA);
+    final blockColor = isCustomDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isCustomDark
+        ? Colors.white.withValues(alpha: 0.9)
+        : Colors.black.withValues(alpha: 0.8);
+    final iconColor =
+        isCustomDark ? Colors.white70 : Colors.black.withValues(alpha: 0.7);
+    final arrowColor = isCustomDark ? Colors.white30 : Colors.black26;
 
-        return Scaffold(
-          backgroundColor: backgroundColor,
-          // appBar: AppBar(
-          //   backgroundColor: appBarColor,
-          //   elevation: 0,
-          //   leading: BackButton(color: isCustomDark ? Colors.white70 : Colors.black54),
-          //   title: Text('Hồ sơ cá nhân', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
-          // ),
-          appBar: const CustomAppBar(
-            title: 'Hồ sơ cá nhân',
-            centerTitle: true,
-          ),
-          body: SingleChildScrollView(
-            child: Column(
-              children: [
-                // --- KHỐI THÔNG TIN CÁ NHÂN (Giữ nguyên bố cục Container trắng tràn viền) ---
-                Container(
-                  color: blockColor,
-                  width: double.infinity,
-                  padding: const EdgeInsets.only(bottom: 24.0, top: 16.0),
-                  child: Column(
-                    children: [
-                      const CircleAvatar(
-                        radius: 45,
-                        backgroundImage: NetworkImage('https://picsum.photos/200'),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Phạm Thị Mai',
-                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor),
-                      ),
-                      const SizedBox(height: 6),
-                    ],
+    // Xem thông tin user từ authProvider
+    final authState = ref.watch(authProvider);
+    final user = authState.user;
+    final displayName = user?.displayName ?? 'Người dùng Mazii';
+    final email = user?.email ?? '';
+    final photoUrl = user?.photoURL ?? 'https://picsum.photos/200';
+
+    return Scaffold(
+      backgroundColor: backgroundColor,
+      appBar: const CustomAppBar(
+        title: 'Hồ sơ cá nhân',
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // --- KHỐI THÔNG TIN CÁ NHÂN ---
+            Container(
+              color: blockColor,
+              width: double.infinity,
+              padding: const EdgeInsets.only(bottom: 24.0, top: 16.0),
+              child: Column(
+                children: [
+                  CircleAvatar(
+                    radius: 45,
+                    backgroundImage: NetworkImage(photoUrl),
                   ),
-                ),
-                const SizedBox(height: 12),
-
-                // --- KHỐI DANH SÁCH TÍNH NĂNG (Đã bổ sung đầy đủ) ---
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildSectionTitle('Tính năng', isCustomDark),
-                      Card(
-                        color: blockColor,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        child: Column(
-                          children: [
-                            _buildMenuTile(
-                                Icons.person_outline,
-                                'Thông tin cá nhân',
-                                textColor, iconColor, arrowColor, scale,
-                                onTap: () {
-                                  context.push('/profile/info');
-                                }
-                            ),
-                            _buildMenuTile(
-                                Icons.lock_outline,
-                                'Bảo mật & mật khẩu',
-                                textColor, iconColor, arrowColor, scale,
-                                onTap: () {
-                                  context.push('/profile/security');
-                                }
-                            ),
-                            _buildMenuTile(
-                                Icons.favorite_outline,
-                                'Yêu thích',
-                                textColor, iconColor, arrowColor, scale,
-                                onTap: () {
-                                  context.push('/profile/favorites');
-                                }
-                            ),
-                            _buildMenuTile(
-                                Icons.bar_chart_outlined,
-                                'Thống kê học tập',
-                                textColor, iconColor, arrowColor, scale,
-                                onTap: () {
-                                  context.push('/profile/stats');
-                                }
-                            ),
-                            _buildMenuTile(
-                                Icons.settings_outlined,
-                                'Cài đặt hệ thống',
-                                textColor, iconColor, arrowColor, scale,
-                                onTap: () {
-                                  context.push('/profile/settings');
-                                }
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // --- NÚT ĐĂNG XUẤT ---
-                      Card(
-                        color: blockColor,
-                        elevation: 0,
-                        margin: EdgeInsets.zero,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        child: ListTile(
-                          leading: Icon(Icons.logout, color: iconColor, size: 22 * scale), // Icon tự động co giãn kích thước
-                          title: Text(
-                              'Đăng xuất',
-                              style: TextStyle(fontSize: 15, color: textColor)
-                          ),
-                          onTap: () => _handleLogout(context, isCustomDark, blockColor, textColor), // Kích hoạt popup xác nhận mẫu của bạn
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                    ],
+                  const SizedBox(height: 12),
+                  Text(
+                    displayName,
+                    style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: textColor),
                   ),
-                ),
-              ],
+                  if (email.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      email,
+                      style: TextStyle(
+                          fontSize: 14,
+                          color: isCustomDark ? Colors.white54 : Colors.black54),
+                    ),
+                  ],
+                  const SizedBox(height: 6),
+                ],
+              ),
             ),
-          ),
-        );
-      },
+            const SizedBox(height: 12),
+
+            // --- KHỐI DANH SÁCH TÍNH NĂNG ---
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSectionTitle('Tính năng', isCustomDark),
+                  Card(
+                    color: blockColor,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                    child: Column(
+                      children: [
+                        _buildMenuTile(Icons.person_outline, 'Thông tin cá nhân',
+                            textColor, iconColor, arrowColor, scale, onTap: () {
+                          context.push('/profile/info');
+                        }),
+                        _buildMenuTile(Icons.lock_outline, 'Bảo mật & mật khẩu',
+                            textColor, iconColor, arrowColor, scale, onTap: () {
+                          context.push('/profile/security');
+                        }),
+                        _buildMenuTile(Icons.favorite_outline, 'Yêu thích',
+                            textColor, iconColor, arrowColor, scale, onTap: () {
+                          context.push('/profile/favorites');
+                        }),
+                        _buildMenuTile(
+                            Icons.bar_chart_outlined,
+                            'Thống kê học tập',
+                            textColor,
+                            iconColor,
+                            arrowColor,
+                            scale, onTap: () {
+                          context.push('/profile/stats');
+                        }),
+                        _buildMenuTile(Icons.settings_outlined, 'Cài đặt hệ thống',
+                            textColor, iconColor, arrowColor, scale, onTap: () {
+                          context.push('/profile/settings');
+                        }),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // --- NÚT ĐĂNG XUẤT ---
+                  Card(
+                    color: blockColor,
+                    elevation: 0,
+                    margin: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                    child: ListTile(
+                      leading: Icon(Icons.logout,
+                          color: iconColor, size: 22 * scale),
+                      title: Text('Đăng xuất',
+                          style: TextStyle(fontSize: 15, color: textColor)),
+                      onTap: () => _handleLogout(
+                          context, ref, isCustomDark, blockColor, textColor),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -199,23 +217,25 @@ class ProfileScreen extends StatelessWidget {
   Widget _buildSectionTitle(String title, bool isCustomDark) {
     return Padding(
       padding: const EdgeInsets.only(left: 8.0, bottom: 8.0),
-      child: Text(
-          title,
+      child: Text(title,
           style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: isCustomDark ? Colors.white60 : Colors.black.withValues(alpha: 0.8)
-          )
-      ),
+              color: isCustomDark
+                  ? Colors.white60
+                  : Colors.black.withValues(alpha: 0.8))),
     );
   }
 
   // Khối dựng hàng ListTile chung cho menu hành động
-  Widget _buildMenuTile(IconData icon, String title, Color textColor, Color iconColor, Color arrowColor, double scale, {VoidCallback? onTap}) {
+  Widget _buildMenuTile(IconData icon, String title, Color textColor,
+      Color iconColor, Color arrowColor, double scale,
+      {VoidCallback? onTap}) {
     return ListTile(
-      leading: Icon(icon, color: iconColor, size: 22 * scale), // Nhân với scale để tự phóng to icon khi chỉnh chữ Lớn
+      leading: Icon(icon, color: iconColor, size: 22 * scale),
       title: Text(title, style: TextStyle(fontSize: 15, color: textColor)),
-      trailing: Icon(Icons.arrow_forward_ios, size: 14 * scale, color: arrowColor), // Icon mũi tên cũng co giãn tương thích
+      trailing:
+          Icon(Icons.arrow_forward_ios, size: 14 * scale, color: arrowColor),
       onTap: onTap ?? () {},
     );
   }
