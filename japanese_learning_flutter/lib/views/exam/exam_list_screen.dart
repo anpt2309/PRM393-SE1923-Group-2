@@ -1,0 +1,766 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../data/models/exam.dart';
+import '../../providers/exam_provider.dart';
+
+class ExamListScreen extends ConsumerStatefulWidget {
+  const ExamListScreen({super.key});
+
+  @override
+  ConsumerState<ExamListScreen> createState() => _ExamListScreenState();
+}
+
+class _ExamListScreenState extends ConsumerState<ExamListScreen> {
+  // Styling Constants
+  static const Color cobaltBlue = Color(0xFF0D47A1);
+  static const Color energeticOrange = Color(0xFFFF9800);
+  static const Color textDark = Color(0xFF212121);
+  static const Color textLight = Color(0xFF757575);
+
+  final List<String> _types = ['Tất cả', 'JLPT', 'Kanji', 'Ngữ pháp', 'Từ vựng'];
+  final List<String> _jlptLevels = ['Tất cả', 'N5', 'N4', 'N3', 'N2', 'N1'];
+  final List<String> _difficulties = ['Tất cả', 'Dễ', 'Trung bình', 'Khó'];
+
+  // Shorthand getters — đọc state trực tiếp từ provider
+  ExamListNotifier get _notifier => ref.read(examListProvider.notifier);
+  List<Exam> get _displayedExams => ref.watch(examListProvider).exams;
+  bool get _isLoading => ref.watch(examListProvider).isLoading;
+  String? get _errorMessage => ref.watch(examListProvider).error;
+  String get _selectedType => ref.watch(examListProvider).selectedType;
+  String get _selectedJLPTLevel => ref.watch(examListProvider).selectedJLPTLevel;
+  String get _selectedDifficulty => ref.watch(examListProvider).selectedDifficulty;
+  String get _sortBy => ref.watch(examListProvider).sortBy;
+  TextEditingController get _searchController => _notifier.searchController;
+  TextEditingController get _minPriceController => _notifier.minPriceController;
+  TextEditingController get _maxPriceController => _notifier.maxPriceController;
+
+  Future<void> _loadExams() => _notifier.loadExams();
+  void _resetFilters() => _notifier.resetFilters();
+
+  String _formatPrice(String price) {
+    final lowerPrice = price.toLowerCase().trim();
+    if (lowerPrice == '0' || lowerPrice == '0.0' || lowerPrice == 'miễn phí' || lowerPrice.isEmpty) {
+      return 'Miễn phí';
+    }
+    final cleanPrice = price.replaceAll(RegExp(r'[^\d]'), '');
+    final parsed = double.tryParse(cleanPrice);
+    if (parsed != null) {
+      final value = parsed.toInt().toString();
+      final buffer = StringBuffer();
+      int count = 0;
+      for (int i = value.length - 1; i >= 0; i--) {
+        buffer.write(value[i]);
+        count++;
+        if (count % 3 == 0 && i != 0) {
+          buffer.write('.');
+        }
+      }
+      return '${buffer.toString().split('').reversed.join('')}đ';
+    }
+    return price;
+  }
+
+  // Open Bottom Sheet for Filter and Sort settings
+  void _showFilterBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 20,
+                right: 20,
+                top: 20,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Bộ lọc bài thi',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: cobaltBlue,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            setModalState(() {});
+                            _resetFilters();
+                          },
+                          child: const Text(
+                            'Đặt lại',
+                            style: TextStyle(color: textLight),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Divider(),
+                    const SizedBox(height: 12),
+
+                    // JLPT Level Filter (Cấp độ)
+                    const Text(
+                      'Cấp độ (JLPT Level)',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textDark),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: _jlptLevels.map((level) {
+                        final isSelected = _selectedJLPTLevel == level;
+                        return ChoiceChip(
+                          label: Text(level),
+                          selected: isSelected,
+                          selectedColor: cobaltBlue.withValues(alpha: 0.15),
+                          backgroundColor: Colors.grey.shade100,
+                          labelStyle: TextStyle(
+                            color: isSelected ? cobaltBlue : textDark,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            side: BorderSide(
+                              color: isSelected ? cobaltBlue : Colors.grey.shade300,
+                              width: 1,
+                            ),
+                          ),
+                          onSelected: (selected) {
+                            if (selected) {
+                              setModalState(() {});
+                              _notifier.setFilter(jlptLevel: level);
+                            }
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Difficulty Filter (Độ khó: Dễ, Trung bình, Khó)
+                    const Text(
+                      'Độ khó',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textDark),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: _difficulties.map((diff) {
+                        final isSelected = _selectedDifficulty == diff;
+                        return ChoiceChip(
+                          label: Text(diff),
+                          selected: isSelected,
+                          selectedColor: cobaltBlue.withValues(alpha: 0.15),
+                          backgroundColor: Colors.grey.shade100,
+                          labelStyle: TextStyle(
+                            color: isSelected ? cobaltBlue : textDark,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            side: BorderSide(
+                              color: isSelected ? cobaltBlue : Colors.grey.shade300,
+                              width: 1,
+                            ),
+                          ),
+                          onSelected: (selected) {
+                            if (selected) {
+                              setModalState(() {});
+                              _notifier.setFilter(difficulty: diff);
+                            }
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Price Range Filter (Loại giá: thanh nhập từ A - B)
+                    const Text(
+                      'Khoảng giá (VNĐ)',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textDark),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: TextField(
+                              controller: _minPriceController,
+                              keyboardType: TextInputType.number,
+                              style: const TextStyle(fontSize: 14, color: textDark),
+                              decoration: const InputDecoration(
+                                hintText: 'Giá từ (A)',
+                                hintStyle: TextStyle(color: textLight, fontSize: 13),
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              ),
+                              onChanged: (value) {
+                                _notifier.setPriceRange(
+                                    value, _maxPriceController.text);
+                              },
+                            ),
+                          ),
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 12.0),
+                          child: Text('—', style: TextStyle(color: textLight)),
+                        ),
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: TextField(
+                              controller: _maxPriceController,
+                              keyboardType: TextInputType.number,
+                              style: const TextStyle(fontSize: 14, color: textDark),
+                              decoration: const InputDecoration(
+                                hintText: 'Giá đến (B)',
+                                hintStyle: TextStyle(color: textLight, fontSize: 13),
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              ),
+                              onChanged: (value) {
+                                _notifier.setPriceRange(
+                                    _minPriceController.text, value);
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Sorting Options (Duy nhất 2 mục: từ thấp đến cao và từ cao đến thấp)
+                    const Text(
+                      'Sắp xếp theo giá',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textDark),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade200),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        children: [
+                          RadioListTile<String>(
+                            title: const Text('Giá từ thấp đến cao', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                            value: 'price_low_high',
+                            groupValue: _sortBy,
+                            activeColor: cobaltBlue,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                            onChanged: (value) {
+                              setModalState(() {});
+                              _notifier.setFilter(sortBy: value);
+                            },
+                          ),
+                          const Divider(height: 1, thickness: 1),
+                          RadioListTile<String>(
+                            title: const Text('Giá từ cao đến thấp', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                            value: 'price_high_low',
+                            groupValue: _sortBy,
+                            activeColor: cobaltBlue,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                            onChanged: (value) {
+                              setModalState(() {});
+                              _notifier.setFilter(sortBy: value);
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+
+                    // Apply Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: energeticOrange,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: const Text(
+                          'Áp dụng bộ lọc',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white, // Pure white background
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: cobaltBlue),
+          onPressed: () {
+            context.go('/');
+          },
+        ),
+        title: const Text(
+          'Đề thi & Luyện tập',
+          style: TextStyle(
+            color: cobaltBlue,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: cobaltBlue),
+            tooltip: 'Làm mới',
+            onPressed: _resetFilters,
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // 1. Search Bar & Filter Buttons
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      style: const TextStyle(color: textDark, fontSize: 15),
+                      decoration: InputDecoration(
+                        hintText: 'Tìm kiếm tên bài thi...',
+                        hintStyle: TextStyle(color: Colors.grey.shade500),
+                        prefixIcon: const Icon(Icons.search, color: textLight),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, color: textLight),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  _loadExams();
+                                },
+                              )
+                            : null,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onChanged: (val) => _notifier.setSearchQuery(val),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // Filter icon button
+                Material(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: _showFilterBottomSheet,
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade200),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          const Icon(Icons.filter_list, color: cobaltBlue),
+                          if (_selectedJLPTLevel != 'Tất cả' ||
+                              _selectedDifficulty != 'Tất cả' ||
+                              _minPriceController.text.isNotEmpty ||
+                              _maxPriceController.text.isNotEmpty)
+                            Positioned(
+                              top: -4,
+                              right: -4,
+                              child: Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: energeticOrange,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            )
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // 2. Horizontal Type Filters (e.g. JLPT, Kanji, Ngữ pháp, Từ vựng)
+          Container(
+            height: 48,
+            margin: const EdgeInsets.symmetric(vertical: 8.0),
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: _types.length,
+              itemBuilder: (context, index) {
+                final type = _types[index];
+                final isSelected = _selectedType == type;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: ChoiceChip(
+                    label: Text(type),
+                    selected: isSelected,
+                    selectedColor: cobaltBlue,
+                    backgroundColor: Colors.white,
+                    labelStyle: TextStyle(
+                      color: isSelected ? Colors.white : textLight,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      side: BorderSide(
+                        color: isSelected ? cobaltBlue : Colors.grey.shade300,
+                      ),
+                    ),
+                    onSelected: (selected) {
+                      if (selected) {
+                        _notifier.setFilter(type: type);
+                      }
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+
+          // Active Filters Display Bar
+          if (_selectedJLPTLevel != 'Tất cả' ||
+              _selectedDifficulty != 'Tất cả' ||
+              _minPriceController.text.isNotEmpty ||
+              _maxPriceController.text.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+              child: Row(
+                children: [
+                  const Text(
+                    'Đang lọc: ',
+                    style: TextStyle(fontSize: 12, color: textLight, fontStyle: FontStyle.italic),
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          if (_selectedJLPTLevel != 'Tất cả')
+                            _buildFilterIndicator(_selectedJLPTLevel, () {
+                              _notifier.setFilter(jlptLevel: 'Tất cả');
+                            }),
+                          if (_selectedDifficulty != 'Tất cả')
+                            _buildFilterIndicator('Độ khó: $_selectedDifficulty', () {
+                              _notifier.setFilter(difficulty: 'Tất cả');
+                            }),
+                          if (_minPriceController.text.isNotEmpty)
+                            _buildFilterIndicator('Min: ${_minPriceController.text}đ', () {
+                              _notifier.setPriceRange('', _maxPriceController.text);
+                            }),
+                          if (_maxPriceController.text.isNotEmpty)
+                            _buildFilterIndicator('Max: ${_maxPriceController.text}đ', () {
+                              _notifier.setPriceRange(_minPriceController.text, '');
+                            }),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          // 3. Main List of Exams
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator(color: cobaltBlue))
+                : _errorMessage != null
+                    ? _buildErrorState()
+                    : _displayedExams.isEmpty
+                        ? _buildEmptyState()
+                        : ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: _displayedExams.length,
+                            itemBuilder: (context, index) {
+                              final exam = _displayedExams[index];
+                              return _buildExamCard(exam);
+                            },
+                          ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.cloud_off, size: 64, color: Colors.redAccent),
+            const SizedBox(height: 16),
+            const Text(
+              'Không thể tải dữ liệu từ máy chủ',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textDark),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _errorMessage ?? 'Vui lòng kiểm tra kết nối mạng hoặc trạng thái backend.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, color: textLight),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _loadExams,
+              icon: const Icon(Icons.refresh, color: Colors.white),
+              label: const Text('Thử lại', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: cobaltBlue,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterIndicator(String text, VoidCallback onRemove) {
+    return Container(
+      margin: const EdgeInsets.only(right: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(text, style: const TextStyle(fontSize: 11, color: textDark)),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: onRemove,
+            child: const Icon(Icons.close, size: 12, color: textLight),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off, size: 72, color: Colors.grey.shade300),
+          const SizedBox(height: 16),
+          const Text(
+            'Không tìm thấy bài thi phù hợp',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: textDark,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Hãy thử thay đổi từ khoá hoặc xoá bớt các bộ lọc.',
+            style: TextStyle(fontSize: 14, color: textLight),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: _resetFilters,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: cobaltBlue,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Đặt lại bộ lọc'),
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExamCard(Exam exam) {
+    return Card(
+      color: Colors.white,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade200, width: 1),
+      ),
+      margin: const EdgeInsets.only(bottom: 16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          context.push('/exams/${exam.id}', extra: exam);
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Badge line & Price
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Badges & Type
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: energeticOrange.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          exam.difficulty,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: energeticOrange,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Text(
+                          exam.examType,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: textDark,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  // Price tag
+                  Text(
+                    _formatPrice(exam.price),
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: exam.isFree ? Colors.green.shade700 : energeticOrange,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Title
+              Text(
+                exam.title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: textDark,
+                ),
+              ),
+              if (exam.description.trim().isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  exam.description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: textLight,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 14),
+
+              // Stats (Duration, Rating, UserCount)
+              Row(
+                children: [
+                  const Icon(Icons.timer_outlined, size: 14, color: textLight),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${exam.totalDuration} phút',
+                    style: const TextStyle(fontSize: 12, color: textLight),
+                  ),
+                  const Spacer(),
+                  const Icon(Icons.star, size: 14, color: Colors.amber),
+                  const SizedBox(width: 2),
+                  Text(
+                    exam.start.toString(),
+                    style: const TextStyle(fontSize: 12, color: textDark, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(Icons.people_outline, size: 14, color: Colors.grey.shade400),
+                  const SizedBox(width: 2),
+                  Text(
+                    (() {
+                      final val = int.tryParse(exam.userCount) ?? 0;
+                      if (val >= 1000) {
+                        return '${(val / 1000).toStringAsFixed(1)}k';
+                      }
+                      return exam.userCount;
+                    })(),
+                    style: const TextStyle(fontSize: 12, color: textLight),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
