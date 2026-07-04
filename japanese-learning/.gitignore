@@ -22,6 +22,7 @@ target/
 # Ignore environment-specific Spring Boot configs
 application-*.properties
 application-*.yml
+application.properties
 
 
 src/main/resources/application.properties
