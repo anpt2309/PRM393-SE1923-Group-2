@@ -26,6 +26,9 @@ public class RewardRedemption {
     @Column(name = "redeemed_at", insertable = false, updatable = false)
     private LocalDateTime redeemedAt;
 
+    @Column(name = "voucher_code")
+    private String voucherCode;
+
     private Boolean isUsed = false; // Để đánh dấu voucher này đã mang đi giảm giá chưa
 
     @OneToOne(fetch = FetchType.LAZY)
