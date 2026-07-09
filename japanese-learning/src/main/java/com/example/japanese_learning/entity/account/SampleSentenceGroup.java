@@ -22,6 +22,9 @@ public class SampleSentenceGroup {
     @Column(name = "group_name", nullable = false)
     private String groupName;
 
+    @Column(name = "jlpt_level")
+    private String jlptLevel;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 }

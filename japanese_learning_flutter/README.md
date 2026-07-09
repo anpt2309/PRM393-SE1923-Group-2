@@ -1,150 +1,423 @@
 # Japanese Learning Flutter App - Project Overview & Structure
 
-Dự án này là một ứng dụng di động học tiếng Nhật toàn diện (luyện đề thi, học từ vựng, chữ Hán, ngữ pháp và thẻ nhớ flashcards) được xây dựng bằng **Flutter**. Tài liệu này mô tả chi tiết về cấu trúc thư mục, kiến trúc thiết kế, và luồng hoạt động của mã nguồn để hỗ trợ AI/Developer nhanh chóng nắm bắt bối cảnh khi sửa lỗi hoặc phát triển tính năng mới.
+Dự án này là một ứng dụng di động học tiếng Nhật toàn diện (luyện đề thi JLPT, học từ vựng, chữ Hán, ngữ pháp, flashcard, tin tức tiếng Nhật) được xây dựng bằng **Flutter**. Tài liệu này mô tả chi tiết cấu trúc thư mục, kiến trúc, các quy ước code thực tế và luồng hoạt động để AI/Developer nhanh chóng nắm bắt bối cảnh khi sửa lỗi hoặc phát triển tính năng mới **theo đúng phong cách đã có sẵn**.
 
 ---
 
 ## 1. Kiến Trúc Dự Án (Architecture Pattern)
 
-Dự án tuân thủ kiến trúc **MVVM (Model - View - ViewModel)** hiện đại kết hợp với **Repository Pattern**, trong đó **Riverpod** chịu trách nhiệm quản lý trạng thái và đóng vai trò làm ViewModel:
+Dự án tuân thủ kiến trúc **MVVM (Model - View - ViewModel)** kết hợp **Repository Pattern**, trong đó **Riverpod** đóng vai trò ViewModel:
 
-```mermaid
-graph TD
-    View[Views / Screens] -->|Quan sát trạng thái / Gửi sự kiện| ViewModel[Riverpod Providers]
-    ViewModel -->|Gọi dữ liệu / Xử lý logic| Repository[Repositories]
-    Repository -->|Yêu cầu kết nối API| Service[API Services]
-    Service -->|Gọi HTTP Requests| Backend[Spring Boot Backend API]
+```
+View (ConsumerWidget/ConsumerStatefulWidget)
+  └─► ref.watch(provider)       ← lắng nghe state
+  └─► ref.read(provider.notifier).method()  ← gửi event
+
+Provider / Notifier (ViewModel)  [lib/providers/]
+  └─► _repository.getXxx()      ← gọi qua Repository
+
+Repository  [lib/data/repositories/]
+  └─► _service.fetchXxx()       ← gọi qua Service
+
+Service  [lib/data/services/]
+  └─► http.get/post(uri)        ← gọi REST API Spring Boot
 ```
 
-*   **Model**: Định nghĩa cấu trúc dữ liệu thô nhận từ Backend API.
-*   **View**: Thành phần giao diện người dùng (Widgets/Screens) phản hồi trực tiếp với các tương tác của người dùng. Lắng nghe trạng thái từ các Provider thông qua `ref.watch(provider)` và gửi các sự kiện (events) thông qua `ref.read()`.
-*   **ViewModel (Riverpod Providers)**: Các lớp `Notifier` hoặc `NotifierState` trong Riverpod. Quản lý trạng thái (State) của UI và xử lý các logic tương tác độc lập với View.
-*   **Repository**: Lớp trung gian điều phối dữ liệu từ local (nếu có) hoặc API Service, thực hiện ánh xạ định dạng dữ liệu (Mapping) và lọc/sắp xếp phía Client.
-*   **Service**: Trực tiếp gọi API HTTP (`GET`, `POST`, ...) giao tiếp với Backend Server hoặc Firebase.
+- **Model**: Plain Dart class, có `factory Model.fromJson(Map<String,dynamic>)`. Không có logic nghiệp vụ.
+- **View**: `ConsumerWidget` hoặc `ConsumerStatefulWidget`. Chỉ đọc state từ Provider, không gọi Service hay Repository trực tiếp.
+- **Provider (ViewModel)**: Class `XxxNotifier extends Notifier<XxxState>`. Quản lý `XxxState` (immutable, dùng `copyWith`). Được đăng ký bằng `NotifierProvider<XxxNotifier, XxxState>(XxxNotifier.new)`.
+- **Repository**: Lớp trung gian, khởi tạo Service bên trong (`final _service = XxxService()`). Bắt exception, trả về giá trị mặc định thay vì throw.
+- **Service**: Gọi HTTP trực tiếp. Có `static String get baseUrl` tự động detect môi trường (Android emulator vs Web/iOS).
 
 ---
 
-## 2. Cấu Trúc Thư Mục Chi Tiết (`/lib`)
-
-Thư mục chính chứa mã nguồn Flutter nằm trong `/lib`:
+## 2. Cấu Trúc Thư Mục Chi Tiết (`/lib`) — Trạng Thái Thực Tế
 
 ```
 lib/
-├── data/                         # Lớp dữ liệu (Data Layer)
-│   ├── models/                   # Định nghĩa các Model dữ liệu & parsing JSON
-│   │   ├── auth_exception.dart   # Lỗi xác thực tài khoản
-│   │   ├── comment_response.dart # Model bình luận câu hỏi đề thi
-│   │   ├── exam.dart             # Model thông tin đề thi cơ bản
-│   │   ├── exam_attempt.dart     # Model thông tin lượt thi của người dùng
-│   │   ├── exam_detail.dart      # Model chi tiết đề thi & cấu trúc các phần thi
-│   │   ├── exam_history.dart     # Model thông tin danh sách lịch sử thi
-│   │   └── exam_history_detail.dart # Model chi tiết kết quả bài thi đã làm để xem lại
+├── data/
+│   ├── models/
+│   │   ├── auth_exception.dart
+│   │   ├── comment_response.dart
+│   │   ├── exam.dart
+│   │   ├── exam_attempt.dart
+│   │   ├── exam_detail.dart
+│   │   ├── exam_history.dart
+│   │   ├── exam_history_detail.dart
+│   │   ├── grammar.dart            ← Model ngữ pháp (GrammarLesson, GrammarWord)
+│   │   ├── kanji.dart              ← Model chữ Hán (KanjiLesson, KanjiWord)
+│   │   ├── news.dart               ← Model tin tức (NewsCategory, NewsArticle, NewsSpan)
+│   │   ├── sentence_group.dart
+│   │   ├── sentence_item.dart
+│   │   ├── sentence_part.dart
+│   │   └── vocabulary.dart         ← Model từ vựng (VocabularyLesson, VocabularyWord)
 │   │
-│   ├── repositories/             # Lớp Repository điều phối & tiền xử lý dữ liệu
-│   │   ├── auth_repository.dart  # Repository tài khoản & xác thực
-│   │   ├── exam_attempt_repository.dart # Repository phiên thi trắc nghiệm
-│   │   ├── exam_history_repository.dart # Repository lịch sử thi & bình luận/AI Tutor
-│   │   └── exam_repository.dart  # Repository lọc/sắp xếp danh sách đề thi
+│   ├── repositories/
+│   │   ├── auth_repository.dart
+│   │   ├── exam_attempt_repository.dart
+│   │   ├── exam_history_repository.dart
+│   │   ├── exam_repository.dart
+│   │   ├── grammar_repository.dart     ← Repository ngữ pháp
+│   │   ├── kanji_repository.dart       ← Repository chữ Hán
+│   │   ├── news_repository.dart        ← Repository tin tức & yêu thích bài viết
+│   │   ├── notification_repository.dart← Repository thông báo push
+│   │   ├── sentence_repository.dart
+│   │   └── vocab_repository.dart       ← Repository từ vựng & yêu thích từ
 │   │
-│   └── services/                 # Lớp Service tương tác với các nguồn bên ngoài
-│       ├── auth_error_mapper.dart# Chuẩn hóa mã lỗi xác thực từ Firebase
-│       ├── auth_service.dart     # Kết nối Firebase Authentication & Storage
-│       ├── exam_attempt_service.dart # Gọi API bắt đầu, lưu tạm & nộp bài thi
-│       ├── exam_history_service.dart # Gọi API lấy lịch sử, bình luận & hỏi AI Tutor
-│       └── exam_service.dart     # Gọi API lấy danh sách & chi tiết đề thi
+│   └── services/
+│       ├── auth_error_mapper.dart
+│       ├── auth_exception.dart
+│       ├── auth_service.dart           ← Firebase Auth + Firebase Storage
+│       ├── exam_attempt_service.dart
+│       ├── exam_history_service.dart
+│       ├── exam_service.dart
+│       ├── grammar_service.dart        ← API ngữ pháp
+│       ├── kanji_service.dart          ← API chữ Hán
+│       ├── news_service.dart           ← API tin tức, ghi chú, yêu thích bài viết
+│       ├── notification_service.dart   ← Firebase Messaging + local notifications
+│       ├── sentence_service.dart
+│       └── vocab_service.dart          ← API từ vựng & yêu thích từ vựng
 │
-├── providers/                    # Quản lý trạng thái & logic nghiệp vụ (Riverpod Providers)
-│   ├── app_setting_provider.dart # Quản lý thiết lập giao diện (Theme, kích thước chữ...)
-│   ├── auth_provider.dart        # Quản lý trạng thái xác thực và thông tin người dùng
-│   ├── exam_attempt_provider.dart# Quản lý tiến trình thi trắc nghiệm (câu trả lời, thời gian, audio)
-│   ├── exam_history_provider.dart# Quản lý lịch sử làm bài, bình luận, báo lỗi & AI Tutor
-│   ├── exam_provider.dart        # Quản lý danh sách & bộ lọc tìm kiếm đề thi
-│   └── streak_provider.dart      # Quản lý dữ liệu điểm danh hàng ngày của người học
+├── providers/
+│   ├── app_setting_provider.dart   ← isDarkMode, textScaleFactor (dùng SharedPreferences)
+│   ├── auth_provider.dart          ← Xác thực, thông tin user, Google Sign-In
+│   ├── exam_attempt_provider.dart  ← Tiến trình làm bài thi (câu trả lời, timer, audio)
+│   ├── exam_history_provider.dart  ← Lịch sử bài thi, bình luận, AI Tutor
+│   ├── exam_provider.dart          ← Danh sách & bộ lọc đề thi
+│   ├── grammar_provider.dart       ← Dữ liệu & trạng thái màn hình ngữ pháp
+│   ├── japanese_search_provider.dart ← Tra cứu từ điển tích hợp
+│   ├── kanji_provider.dart         ← Dữ liệu & trạng thái màn hình chữ Hán
+│   ├── news_provider.dart          ← Tin tức, tab category, ghi chú, yêu thích bài viết
+│   ├── sentence_provider.dart      ← Mẫu câu & trạng thái quiz ghép câu
+│   ├── streak_provider.dart        ← Điểm danh hàng ngày, coin, shop quà
+│   └── vocab_provider.dart         ← Từ vựng theo cấp độ JLPT & yêu thích từ
 │
-├── routes/                       # Quản lý điều hướng (Navigation)
-│   └── app_router.dart           # Cấu hình GoRouter chính, định nghĩa AppRoutes
+├── routes/
+│   └── app_router.dart             ← GoRouter config + class AppRoutes (hằng số route)
 │
-├── views/                        # Lớp hiển thị UI (Presentation Layer)
-│   ├── account/                  # Các màn hình tài khoản & xác thực
-│   │   ├── authen/               # Màn hình đăng nhập (login), đăng ký (register)
-│   │   ├── news/                 # Màn hình danh sách tin tức & chi tiết bài báo (tích hợp audio)
-│   │   └── profile/              # Trang cá nhân, thông tin cá nhân, cài đặt bảo mật, yêu thích, thống kê học tập
+├── views/
+│   ├── account/
+│   │   ├── authen/                 ← login_screen.dart, register_screen.dart, forgot_password_screen.dart
+│   │   └── profile/
+│   │       ├── edit_info_user_screen.dart  ← Màn hình chỉnh sửa thông tin (tách riêng khỏi personal_info)
+│   │       ├── favorites_screen.dart       ← Danh sách yêu thích (bài viết, từ vựng, ...)
+│   │       ├── learning_stats_screen.dart  ← Thống kê học tập
+│   │       ├── personal_info_screen.dart   ← Xem & chỉnh thông tin cá nhân
+│   │       ├── profile_screen.dart         ← Trang hồ sơ chính (hub điều hướng)
+│   │       ├── security_screen.dart        ← Đổi mật khẩu, bảo mật tài khoản
+│   │       └── settings_screen.dart        ← Cài đặt ứng dụng (font, dark mode, ...)
 │   │
-│   ├── exam/                     # Màn hình liên quan đến Đề thi
-│   │   ├── exam_detail_screen.dart # Chi tiết đề thi (giới thiệu, cấu trúc phần thi)
-│   │   └── exam_list_screen.dart   # Danh sách đề thi (hỗ trợ lọc theo loại, cấp độ, độ khó, giá cả)
+│   ├── exam/
+│   │   ├── exam_detail_screen.dart
+│   │   └── exam_list_screen.dart
 │   │
-│   ├── exam_attempt/             # Màn hình làm bài thi trắc nghiệm trực tiếp
-│   │   └── exam_attempt_screen.dart# Giao diện thi (danh sách câu hỏi, audio nghe hiểu, gửi bài)
+│   ├── exam_attempt/
+│   │   └── exam_attempt_screen.dart
 │   │
-│   ├── exam_history/             # Lịch sử và xem lại kết quả làm bài thi
-│   │   ├── exam_history_selector_screen.dart # Danh sách các bài thi đã làm
-│   │   └── exam_history_review_screen.dart   # Xem lại chi tiết bài làm, giải thích, bình luận, hỏi AI Tutor
+│   ├── exam_history/
+│   │   ├── exam_history_review_screen.dart
+│   │   └── exam_history_selector_screen.dart
 │   │
-│   ├── flashcard/                # Hệ thống học từ vựng qua thẻ nhớ Flashcards
-│   │   ├── create_flashcard_screen.dart # Tạo bộ thẻ mới (hỗ trợ nhập Excel/CSV)
-│   │   ├── my_sets_screen.dart     # Danh sách các bộ thẻ của tôi
-│   │   ├── quiz_screen.dart        # Màn hình trắc nghiệm ôn tập bộ thẻ
-│   │   └── study_set_screen.dart   # Màn hình học lật thẻ flashcard
+│   ├── flashcard/
+│   │   ├── create_flashcard_screen.dart    ← Tạo bộ thẻ (nhập tay hoặc import Excel/CSV)
+│   │   ├── history_flashcard_quiz.dart     ← Lịch sử kết quả quiz flashcard
+│   │   ├── my_sets_screen.dart
+│   │   ├── quiz_screen.dart
+│   │   └── study_set_screen.dart
 │   │
-│   ├── home/                     # Màn hình chính
-│   │   └── home_screen.dart      # Widget HomeScreen (Dashboard, biểu đồ tiến trình)
+│   ├── grammar/
+│   │   └── grammar_study_screen.dart       ← Học ngữ pháp (thay vì vocab_kanji_grammar/)
 │   │
-│   ├── payment/                  # Cổng thanh toán mua đề thi
-│   │   ├── checkout_screen.dart  # Thanh toán mở khóa đề thi trả phí
-│   │   └── payment_history_screen.dart # Lịch sử giao dịch thanh toán
+│   ├── home/
+│   │   ├── home_screen.dart
+│   │   └── japanese_search_screen.dart     ← Tra cứu từ điển (đặt trong home/, không phải vocab_kanji_grammar/)
 │   │
-│   ├── rewards/                  # Shop đổi quà ảo (Coin, Voucher) & Điểm danh (Streak)
-│   │   ├── reward_shop_screen.dart # Cửa hàng đổi quà ảo
-│   │   └── streak_calendar_screen.dart # Lịch sử điểm danh hàng ngày
+│   ├── kanji/
+│   │   └── kanji_study_screen.dart         ← Học chữ Hán
 │   │
-│   └── vocab_kanji_grammar/      # Các màn hình học tập nâng cao
-│       ├── grammar_study_screen.dart # Học lý thuyết và bài tập ngữ pháp
-│       ├── japanese_search_screen.dart # Tra cứu từ điển tích hợp (Nhật-Việt)
-│       ├── kanji_study_screen.dart # Học viết, phát âm và bộ thủ chữ Hán
-│       └── vocab_study_screen.dart # Học từ vựng theo cấp độ JLPT
+│   ├── news/
+│   │   └── news_screen.dart                ← Tin tức (đặt tại views/news/, KHÔNG phải views/account/news/)
+│   │
+│   ├── payment/
+│   │   ├── checkout_screen.dart
+│   │   └── payment_history_screen.dart
+│   │
+│   ├── rewards/
+│   │   ├── reward_shop_screen.dart
+│   │   └── streak_calendar_screen.dart
+│   │
+│   ├── sample_sentence/
+│   │   └── sentence_screen.dart
+│   │
+│   └── vocab/
+│       └── vocab_study_screen.dart         ← Học từ vựng theo JLPT
 │
-├── widgets/                      # Các Widget dùng chung trên toàn ứng dụng
-│   ├── add_menu_button.dart      # Nút menu nổi bật góc màn hình để chuyển cài đặt nhanh
-│   ├── app_bar.dart              # Custom App Bar đồng bộ font và theme toàn app
-│   └── app_setting.dart          # Bottom sheet cấu hình font size và dark mode nhanh
+├── widgets/
+│   ├── add_menu_button.dart    ← GlobalAddMenuButton: nút menu nổi (cài đặt nhanh)
+│   ├── app_bar.dart            ← Custom AppBar đồng bộ theme
+│   └── app_setting.dart        ← Bottom sheet chỉnh font size & dark mode nhanh
 │
-├── firebase_options.dart         # Cấu hình Firebase cho dự án
-└── main.dart                     # Điểm khởi chạy ứng dụng (Entrypoint)
+├── firebase_options.dart
+└── main.dart
+```
+
+> **Lưu ý quan trọng về vị trí file:** `news_screen.dart` nằm tại `views/news/`, KHÔNG phải `views/account/news/`. Các màn hình học tập (`grammar`, `kanji`, `vocab`) mỗi loại có thư mục riêng, KHÔNG gộp vào `vocab_kanji_grammar/`.
+
+---
+
+## 3. Hệ Thống Điều Hướng (Routing)
+
+Tất cả route được định nghĩa tập trung trong `lib/routes/app_router.dart`.
+
+### Hằng số route (`AppRoutes`):
+| Hằng số | Đường dẫn | Màn hình |
+|---|---|---|
+| `home` | `/` | `HomeScreen` |
+| `login` | `/login` | `LoginScreen` (query: `?email=`) |
+| `register` | `/register` | `RegisterScreen` (extra: `{email, password}`) |
+| `forgotPassword` | `/forgot-password` | `ForgotPasswordScreen` |
+| `exams` | `/exams` | `ExamListScreen` |
+| `examDetail` | `/exams/:examId` | `ExamDetailScreen` (extra: `Exam` object) |
+| `examAttempt` | `/exams/:examId/attempt` | `ExamAttemptScreen` |
+| `examHistory` | `/exams/:examId/history` | `ExamHistorySelectorScreen` |
+| `examHistoryReview` | `/exams/:examId/history/review` | `ExamHistoryReviewScreen` (extra: `int? attemptId`) |
+| `flashcards` | `/flashcards` | `MySetsScreen` |
+| `flashcardCreate` | `/flashcards/create` | `CreateSetScreen` |
+| `flashcardStudy` | `/flashcards/:setId/study` | `StudySetScreen` (extra: `{setName, cardCount}`) |
+| `flashcardQuiz` | `/flashcards/:setId/quiz` | `QuizScreen` (extra: `{setName, cards}`) |
+| `flashcardQuizHistory` | `/flashcards/:setId/quiz/history` | `HistoryFlashcardQuiz` (extra: `String setName`) |
+| `profile` | `/profile` | `ProfileScreen` |
+| `profileInfo` | `/profile/info` | `PersonalInfoScreen` |
+| `profileSecurity` | `/profile/security` | `SecurityScreen` |
+| `profileFavorites` | `/profile/favorites` | `FavoritesScreen` |
+| `profileStats` | `/profile/stats` | `LearningStatsScreen` |
+| `profileSettings` | `/profile/settings` | `SettingsScreen` |
+| `news` | `/news` | `NewsScreen` (extra: `Map<String,String>?` targetArticle) |
+| `sentence` | `/sentence` | `SentenceScreen` |
+| `rewards` | `/rewards` | `RewardShopScreen` (extra: `int` coins) |
+| `streak` | `/streak` | `StreakCalendarScreen` |
+| `paymentCheckout` | `/payment/checkout` | `CheckoutScreen` (extra: `{currentCoins, onCoinsUpdated, selectedVoucher}`) |
+| `paymentHistory` | `/payment/history` | `PaymentHistoryScreen` (extra: `int` coins) |
+| `search` | `/search` | `JapaneseSearchScreen` |
+| `vocab` | `/vocab` | `VocabStudyScreen` |
+| `kanji` | `/kanji` | `KanjiStudyScreen` |
+| `grammar` | `/grammar` | `GrammarStudyScreen` |
+
+### Hàm helper điều hướng có param:
+```dart
+examDetailPath(String examId)         // '/exams/$examId'
+examAttemptPath(String examId)
+examHistoryPath(String examId)
+examHistoryReviewPath(String examId)
+flashcardStudyPath(String setId)
+flashcardQuizPath(String setId)
+flashcardQuizHistoryPath(String setId)
 ```
 
 ---
 
-## 3. Hệ Thống Điều Hướng (Routing System)
+## 4. Công Nghệ & Thư Viện (Tech Stack)
 
-Ứng dụng sử dụng gói thư viện **`go_router`** để quản lý điều hướng giữa các màn hình, được định cấu hình tập trung trong `lib/routes/app_router.dart`. 
+| Thư viện | Phiên bản | Mục đích |
+|---|---|---|
+| `flutter_riverpod` | ^2.6.1 | State management duy nhất (ViewModel) |
+| `go_router` | ^14.8.1 | Điều hướng màn hình |
+| `http` | ^1.6.0 | Gọi REST API Spring Boot |
+| `firebase_core` | ^4.9.0 | Firebase khởi tạo |
+| `firebase_auth` | ^6.5.1 | Xác thực người dùng |
+| `firebase_storage` | ^13.4.1 | Lưu trữ hình ảnh người dùng |
+| `firebase_messaging` | ^16.4.1 | Push notifications |
+| `cloud_firestore` | ^6.0.0 | Lưu trữ Firestore (flashcard data) |
+| `google_sign_in` | ^6.2.1 | Đăng nhập Google |
+| `shared_preferences` | ^2.5.5 | Lưu cài đặt cục bộ (dark mode, font size) |
+| `audioplayers` | ^5.2.1 | Phát audio bài thi nghe & tin tức |
+| `flutter_tts` | ^4.1.1 | Text-to-speech |
+| `image_picker` | ^1.1.2 | Chọn ảnh đại diện |
+| `intl` | ^0.19.0 | Định dạng ngày giờ |
 
-### Danh sách các Route chính (`AppRoutes`):
-*   `/login` & `/register`: Xác thực tài khoản.
-*   `/`: Trang chủ (`HomeScreen`).
-*   `/exams`: Danh sách đề thi & luyện tập (`ExamListScreen`).
-*   `/exams/:examId`: Chi tiết đề thi (`ExamDetailScreen`), nhận parameter ID và gọi API chi tiết.
-*   `/exams/:examId/attempt`: Bắt đầu làm bài thi trắc nghiệm.
-*   `/flashcards`: Danh sách các bộ thẻ nhớ flashcards.
-*   `/flashcards/create`: Tạo bộ thẻ nhớ mới.
-*   `/search`: Trang tra cứu từ vựng, chữ Hán, ngữ pháp.
-*   `/vocab`, `/kanji`, `/grammar`: Các màn hình học từ vựng, chữ Hán và ngữ pháp.
-*   `/profile`: Trang hồ sơ người dùng.
+**Môi trường:**
+- Flutter SDK: `3.41.9`  
+- Dart SDK: `^3.11.5`
+- Package name: `japanese_learning` (dùng trong import: `package:japanese_learning/...`)
+
+**Backend:** Spring Boot REST API chạy tại port `8080`.  
+Base URL tự động detect trong mỗi Service:
+```dart
+static String get baseUrl {
+  if (kIsWeb) return 'http://localhost:8080';
+  try {
+    return Platform.isAndroid ? 'http://10.0.2.2:8080' : 'http://localhost:8080';
+  } catch (_) {
+    return 'http://localhost:8080';
+  }
+}
+```
+
+**Response format chuẩn của Backend:**
+```json
+{ "data": <payload> }
+```
+Mọi Service đều parse theo dạng: `json.decode(utf8.decode(response.bodyBytes))` → lấy `decodedData['data']`.
 
 ---
 
-## 4. Công Nghệ & Các Thư Viện Sử Dụng (Tech Stack)
+## 5. Các Pattern Code Thực Tế Trong Dự Án
 
-Khi thực hiện sửa lỗi hoặc nâng cấp tính năng cho dự án này, hãy lưu ý:
-1.  **State Management**: Sử dụng **Riverpod (flutter_riverpod)** làm giải pháp quản lý trạng thái duy nhất. Toàn bộ ứng dụng được bọc trong `ProviderScope`. Các widget giao diện kế thừa `ConsumerWidget` hoặc `ConsumerStatefulWidget` để kết nối dữ liệu.
-2.  **API Connection**: Sử dụng gói `http` để tạo yêu cầu kết nối với Backend. Base URL tự động nhận biết chạy Emulator (Android trỏ về `http://10.0.2.2:8080`) hoặc chạy trên Web/iOS (trỏ về `http://localhost:8080`).
-3.  **Firebase**: Tích hợp Firebase Core phục vụ các tính năng xác thực và lưu trữ hình ảnh.
+### Pattern Model
+```dart
+class XxxModel {
+  final int id;
+  final String name;
+
+  XxxModel({required this.id, required this.name});
+
+  factory XxxModel.fromJson(Map<String, dynamic> json) {
+    return XxxModel(
+      id: json['id'] as int? ?? 0,
+      name: json['name'] as String? ?? '',
+    );
+  }
+}
+```
+
+### Pattern Service
+```dart
+class XxxService {
+  static String get baseUrl { /* detect Android/Web */ }
+
+  Future<List<XxxModel>> fetchXxx() async {
+    final uri = Uri.parse('$baseUrl/xxx');
+    final response = await http.get(uri).timeout(const Duration(seconds: 8));
+    if (response.statusCode == 200) {
+      final decodedData = json.decode(utf8.decode(response.bodyBytes));
+      if (decodedData is Map<String, dynamic> && decodedData.containsKey('data')) {
+        final dataField = decodedData['data'];
+        if (dataField is List) {
+          return dataField.map((item) => XxxModel.fromJson(item)).toList();
+        }
+      }
+    }
+    throw Exception('Server error: ${response.statusCode}');
+  }
+}
+```
+
+### Pattern Repository
+```dart
+class XxxRepository {
+  final XxxService _service;
+  XxxRepository({XxxService? service}) : _service = service ?? XxxService();
+
+  Future<List<XxxModel>> getXxx() async {
+    try {
+      return await _service.fetchXxx();
+    } catch (_) {
+      return []; // Trả về giá trị mặc định thay vì rethrow
+    }
+  }
+}
+```
+
+### Pattern State (Immutable + copyWith)
+```dart
+class XxxState {
+  final bool isLoading;
+  final List<XxxModel> items;
+  final String? error;
+
+  XxxState({this.isLoading = false, this.items = const [], this.error});
+
+  XxxState copyWith({bool? isLoading, List<XxxModel>? items, String? error}) {
+    return XxxState(
+      isLoading: isLoading ?? this.isLoading,
+      items: items ?? this.items,
+      error: error ?? this.error,
+    );
+  }
+}
+```
+
+### Pattern Provider (Notifier)
+```dart
+class XxxNotifier extends Notifier<XxxState> {
+  final _repository = XxxRepository();
+
+  @override
+  XxxState build() {
+    Future.microtask(() => loadXxx()); // Tải dữ liệu ngay khi khởi tạo
+    return XxxState();
+  }
+
+  Future<void> loadXxx() async {
+    state = state.copyWith(isLoading: true);
+    try {
+      final items = await _repository.getXxx();
+      state = state.copyWith(items: items, isLoading: false);
+    } catch (e) {
+      state = state.copyWith(isLoading: false);
+    }
+  }
+}
+
+final xxxProvider = NotifierProvider<XxxNotifier, XxxState>(XxxNotifier.new);
+```
+
+### Pattern View (ConsumerStatefulWidget)
+```dart
+class XxxScreen extends ConsumerStatefulWidget {
+  const XxxScreen({super.key});
+  @override
+  ConsumerState<XxxScreen> createState() => _XxxScreenState();
+}
+
+class _XxxScreenState extends ConsumerState<XxxScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() => ref.read(xxxProvider.notifier).loadXxx());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(xxxProvider);
+    // build UI từ state
+  }
+}
+```
 
 ---
 
-## 5. Hướng Dẫn Dành Cho AI Khi Hỗ Trợ Fix Bug / Viết Code
+## 6. Provider đặc biệt: `appSettingProvider`
 
-Để sửa lỗi hoặc viết code đúng phong cách của dự án này, vui lòng tuân thủ các quy tắc sau:
-*   **Tuân thủ Luồng MVVM & Riverpod**: Không gọi trực tiếp dịch vụ ngoại vi hay gọi trực tiếp Service từ bên trong View. Hãy viết API trong `Service` $\rightarrow$ Khai báo qua `Repository` $\rightarrow$ Tạo Provider quản lý trong thư mục `providers` (ViewModel) $\rightarrow$ Lắng nghe trạng thái từ `View`.
-*   **Sử dụng GoRouter**: Ưu tiên điều hướng bằng `context.push()` hoặc `context.go()` thông qua hệ thống route được định nghĩa tại `app_router.dart`. Hạn chế tối đa việc sử dụng trực tiếp các phương thức đẩy Navigator cũ (`Navigator.push`).
-*   **Quy tắc đặt tên (Naming Convention)**: Đặt tên tệp theo kiểu **snake_case** (ví dụ: `home_screen.dart`, `exam_repository.dart`). Các thư mục con trong `lib/data/` sử dụng danh từ số nhiều (như `models`, `repositories`, `services`).
+`appSettingProvider` dùng `SharedPreferences` để lưu cài đặt. Được override trong `main.dart`:
+```dart
+ProviderScope(
+  overrides: [sharedPreferencesProvider.overrideWithValue(sharedPreferences)],
+  child: const MyApp(),
+)
+```
+
+Cách đọc settings trong bất kỳ Widget nào:
+```dart
+final settings = ref.watch(appSettingProvider);
+final isDark = settings.isDarkMode;
+final scale = settings.textScaleFactor;
+```
+
+`MyApp` dùng `ConsumerWidget` để lắng nghe `appSettingProvider` và áp dụng `ThemeData` toàn app.
+
+---
+
+## 7. Hướng Dẫn Dành Cho AI Khi Hỗ Trợ Fix Bug / Viết Code
+
+### Quy tắc bắt buộc:
+1. **Tuân thủ luồng MVVM**: Service → Repository → Provider/Notifier → View. Tuyệt đối không gọi Service từ View.
+2. **State phải immutable**: Mọi thay đổi state dùng `copyWith`, không mutate trực tiếp.
+3. **Dùng GoRouter**: Điều hướng bằng `context.push()`, `context.go()`, `context.pop()`. Không dùng `Navigator.push()` (ngoại lệ: một số màn hình cũ vẫn dùng `Navigator.pop()` để quay lại).
+4. **Truyền data qua route**: Dùng `state.extra` (object) hoặc `state.uri.queryParameters` (string), không dùng `state.pathParameters` cho data phức tạp.
+5. **Naming convention**: File dùng `snake_case`. Class dùng `PascalCase`. Provider đặt tên `xxxProvider`, Notifier đặt tên `XxxNotifier`, State đặt tên `XxxState`.
+6. **Import path**: Luôn dùng relative import trong cùng package (ví dụ: `import '../../../providers/news_provider.dart'`).
+7. **Timeout HTTP**: Tất cả request đều có `.timeout(const Duration(seconds: 8))`.
+8. **Decode UTF-8**: Luôn dùng `utf8.decode(response.bodyBytes)` thay vì `response.body` để tránh lỗi tiếng Nhật/Việt.
+9. **Yêu thích (Favorites)**: Pattern "optimistic update" — cập nhật UI trước, đồng bộ server sau, rollback nếu lỗi (xem `news_provider.dart` → `toggleFavorite`).
+10. **Thêm màn hình mới**: (1) Tạo model → (2) Tạo service → (3) Tạo repository → (4) Tạo provider + state → (5) Tạo screen → (6) Đăng ký route trong `app_router.dart` + thêm hằng số vào `AppRoutes`.

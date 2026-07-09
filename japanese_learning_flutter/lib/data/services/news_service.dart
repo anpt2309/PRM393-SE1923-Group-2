@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
-import '../models/vocabulary.dart';
+import '../models/news.dart';
 
-class VocabService {
+class NewsService {
   static String get baseUrl {
     if (kIsWeb) return 'http://localhost:8080';
     try {
@@ -14,8 +14,8 @@ class VocabService {
     }
   }
 
-  Future<List<VocabularyLesson>> fetchLessons(String level) async {
-    final uri = Uri.parse('$baseUrl/vocab/lessons?level=$level');
+  Future<List<NewsCategory>> fetchCategories() async {
+    final uri = Uri.parse('$baseUrl/news/categories');
     final response = await http.get(uri).timeout(const Duration(seconds: 8));
 
     if (response.statusCode == 200) {
@@ -23,15 +23,15 @@ class VocabService {
       if (decodedData is Map<String, dynamic> && decodedData.containsKey('data')) {
         final dataField = decodedData['data'];
         if (dataField is List) {
-          return dataField.map((item) => VocabularyLesson.fromJson(item)).toList();
+          return dataField.map((item) => NewsCategory.fromJson(item)).toList();
         }
       }
     }
     throw Exception('Server error: ${response.statusCode}');
   }
 
-  Future<List<VocabularyWord>> fetchWords(String level, String lessonId) async {
-    final uri = Uri.parse('$baseUrl/vocab/words?level=$level&lessonId=$lessonId');
+  Future<List<NewsArticle>> fetchArticles(String categorySlug) async {
+    final uri = Uri.parse('$baseUrl/news/articles?categorySlug=$categorySlug');
     final response = await http.get(uri).timeout(const Duration(seconds: 8));
 
     if (response.statusCode == 200) {
@@ -39,30 +39,71 @@ class VocabService {
       if (decodedData is Map<String, dynamic> && decodedData.containsKey('data')) {
         final dataField = decodedData['data'];
         if (dataField is List) {
-          return dataField.map((item) => VocabularyWord.fromJson(item)).toList();
+          return dataField.map((item) => NewsArticle.fromJson(item)).toList();
         }
       }
     }
     throw Exception('Server error: ${response.statusCode}');
   }
 
-  Future<VocabularyWord?> searchVocabulary(String query) async {
-    final uri = Uri.parse('$baseUrl/vocab/search?query=${Uri.encodeComponent(query)}');
-    final response = await http.get(uri).timeout(const Duration(seconds: 3));
+  Future<NewsArticle> fetchArticleById(int id) async {
+    final uri = Uri.parse('$baseUrl/news/articles/$id');
+    final response = await http.get(uri).timeout(const Duration(seconds: 8));
+
     if (response.statusCode == 200) {
       final decodedData = json.decode(utf8.decode(response.bodyBytes));
       if (decodedData is Map<String, dynamic> && decodedData.containsKey('data')) {
-        final data = decodedData['data'];
-        if (data != null) {
-          return VocabularyWord.fromJson(data);
+        final dataField = decodedData['data'];
+        if (dataField is Map<String, dynamic>) {
+          return NewsArticle.fromJson(dataField);
         }
       }
     }
-    return null;
+    throw Exception('Server error: ${response.statusCode}');
   }
 
-  Future<List<int>> fetchFavoriteVocabIds(int userId) async {
-    final uri = Uri.parse('$baseUrl/favorites/vocab/ids?userId=$userId');
+  Future<String> fetchNote(int userId, int articleId) async {
+    final uri = Uri.parse('$baseUrl/news/notes?userId=$userId&articleId=$articleId');
+    final response = await http.get(uri).timeout(const Duration(seconds: 8));
+
+    if (response.statusCode == 200) {
+      final decodedData = json.decode(utf8.decode(response.bodyBytes));
+      if (decodedData is Map<String, dynamic> && decodedData.containsKey('data')) {
+        final dataField = decodedData['data'];
+        if (dataField is Map<String, dynamic>) {
+          return dataField['noteContent'] ?? '';
+        }
+      }
+    }
+    return '';
+  }
+
+  Future<String> saveNote(int userId, int articleId, String content) async {
+    final uri = Uri.parse('$baseUrl/news/notes');
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json; charset=utf-8'},
+      body: json.encode({
+        'userId': userId,
+        'articleId': articleId,
+        'noteContent': content,
+      }),
+    ).timeout(const Duration(seconds: 8));
+
+    if (response.statusCode == 200) {
+      final decodedData = json.decode(utf8.decode(response.bodyBytes));
+      if (decodedData is Map<String, dynamic> && decodedData.containsKey('data')) {
+        final dataField = decodedData['data'];
+        if (dataField is Map<String, dynamic>) {
+          return dataField['noteContent'] ?? '';
+        }
+      }
+    }
+    throw Exception('Failed to save note: ${response.statusCode}');
+  }
+
+  Future<List<int>> fetchFavoriteArticleIds(int userId) async {
+    final uri = Uri.parse('$baseUrl/favorites/news/ids?userId=$userId');
     final response = await http.get(uri).timeout(const Duration(seconds: 8));
 
     if (response.statusCode == 200) {
@@ -77,14 +118,14 @@ class VocabService {
     return [];
   }
 
-  Future<bool> toggleFavoriteVocab(int userId, int vocabId) async {
-    final uri = Uri.parse('$baseUrl/favorites/vocab/toggle');
+  Future<bool> toggleFavoriteArticle(int userId, int articleId) async {
+    final uri = Uri.parse('$baseUrl/favorites/news/toggle');
     final response = await http.post(
       uri,
       headers: {'Content-Type': 'application/json; charset=utf-8'},
       body: json.encode({
         'userId': userId,
-        'vocabId': vocabId,
+        'articleId': articleId,
       }),
     ).timeout(const Duration(seconds: 8));
 
@@ -100,8 +141,8 @@ class VocabService {
     return false;
   }
 
-  Future<List<VocabularyWord>> fetchFavoriteVocabs(int userId) async {
-    final uri = Uri.parse('$baseUrl/favorites/vocab?userId=$userId');
+  Future<List<NewsArticle>> fetchFavoriteArticles(int userId) async {
+    final uri = Uri.parse('$baseUrl/favorites/news?userId=$userId');
     final response = await http.get(uri).timeout(const Duration(seconds: 8));
 
     if (response.statusCode == 200) {
@@ -109,7 +150,7 @@ class VocabService {
       if (decodedData is Map<String, dynamic> && decodedData.containsKey('data')) {
         final dataField = decodedData['data'];
         if (dataField is List) {
-          return dataField.map((item) => VocabularyWord.fromJson(item)).toList();
+          return dataField.map((item) => NewsArticle.fromJson(item)).toList();
         }
       }
     }

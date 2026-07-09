@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../providers/app_setting_provider.dart';
 import '../../../widgets/app_bar.dart';
 
@@ -62,7 +63,7 @@ class LearningStatsScreen extends ConsumerWidget {
               ),
             ),
 
-            // --- 2. KHỐI CARD TÍNH NĂNG THỐNG KÊ ---
+            // --- 2. KHỐI CARD TÍNH NĂNG THỐNG KÊ (Đã tích hợp DarkMode & Scale) ---
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Card(
@@ -75,19 +76,55 @@ class LearningStatsScreen extends ConsumerWidget {
                 ),
                 child: Column(
                   children: [
-                    _buildStatsTile('Chuỗi ngày học', Icons.calendar_month, '7 ngày liên tiếp', textColor, subTextColor, scale),
+                    _buildStatsTile(
+                      'Chuỗi ngày học',
+                      Icons.calendar_month,
+                      '7 ngày liên tiếp',
+                      textColor,
+                      subTextColor,
+                      scale,
+                      onTap: () => context.push('/streak'),
+                    ),
                     Divider(height: 1, color: dividerColor, indent: 54),
-
-                    _buildStatsTile('Lịch sử coin', Icons.monetization_on_outlined, 'Giao dịch gần nhất: +50 coin', textColor, subTextColor, scale),
+                    _buildStatsTile(
+                      'Lịch sử coin',
+                      Icons.monetization_on_outlined,
+                      'Giao dịch gần nhất: +50 coin',
+                      textColor,
+                      subTextColor,
+                      scale,
+                      onTap: () => context.push('/payment/history', extra: 575),
+                    ),
                     Divider(height: 1, color: dividerColor, indent: 54),
-
-                    _buildStatsTile('Phần thưởng đã đổi', Icons.card_giftcard, '2 phần thưởng', textColor, subTextColor, scale),
+                    _buildStatsTile(
+                      'Phần thưởng đã đổi',
+                      Icons.card_giftcard,
+                      '2 phần thưởng',
+                      textColor,
+                      subTextColor,
+                      scale,
+                      onTap: () => context.push('/rewards', extra: 575),
+                    ),
                     Divider(height: 1, color: dividerColor, indent: 54),
-
-                    _buildStatsTile('Tiến trình học thẻ', Icons.style_outlined, '60% hoàn thành', textColor, subTextColor, scale),
+                    _buildStatsTile(
+                      'Tiến trình học thẻ',
+                      Icons.style_outlined,
+                      '60% hoàn thành',
+                      textColor,
+                      subTextColor,
+                      scale,
+                      onTap: () => context.push('/flashcards'),
+                    ),
                     Divider(height: 1, color: dividerColor, indent: 54),
-
-                    _buildStatsTile('Lịch sử thi JLPT', Icons.school_outlined, 'Điểm gần nhất: 85/100', textColor, subTextColor, scale),
+                    _buildStatsTile(
+                      'Lịch sử thi JLPT',
+                      Icons.school_outlined,
+                      'Điểm gần nhất: 85/100',
+                      textColor,
+                      subTextColor,
+                      scale,
+                      onTap: () => context.push('/exams/0/history'),
+                    ),
                   ],
                 ),
               ),
@@ -98,32 +135,35 @@ class LearningStatsScreen extends ConsumerWidget {
     );
   }
 
+  // Hàm bổ trợ vẽ mục danh sách phẳng
   Widget _buildStatsTile(
-      String title,
-      IconData icon,
-      String subtitle,
-      Color textColor,
-      Color subTextColor,
-      double scale,
-      ) {
+    String title,
+    IconData icon,
+    String subtitle,
+    Color textColor,
+    Color subTextColor,
+    double scale, {
+    VoidCallback? onTap,
+  }) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: Icon(icon, color: subTextColor, size: 22 * scale),
       title: Text(
         title,
-        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: textColor),
+        style: TextStyle(
+            fontSize: 14, fontWeight: FontWeight.w500, color: textColor),
       ),
       subtitle: Padding(
         padding: const EdgeInsets.only(top: 2.0),
         child: Text(
           subtitle,
-          style: TextStyle(color: subTextColor.withValues(alpha: 0.7), fontSize: 12),
+          style: TextStyle(
+              color: subTextColor.withValues(alpha: 0.7), fontSize: 12),
         ),
       ),
-      trailing: Icon(Icons.arrow_forward_ios, size: 13 * scale, color: subTextColor.withValues(alpha: 0.4)),
-      onTap: () {
-        // Logic mở chi tiết thống kê học tập
-      },
+      trailing: Icon(Icons.arrow_forward_ios,
+          size: 13 * scale, color: subTextColor.withValues(alpha: 0.4)),
+      onTap: onTap,
     );
   }
 }

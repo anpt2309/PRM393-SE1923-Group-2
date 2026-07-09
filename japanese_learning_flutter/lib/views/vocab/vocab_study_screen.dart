@@ -316,7 +316,7 @@ class _VocabStudyScreenState extends ConsumerState<VocabStudyScreen> {
 // VOCABULARY CARD LIST ITEM
 // ─────────────────────────────────────────────────────────────
 
-class VocabularyCard extends StatelessWidget {
+class VocabularyCard extends ConsumerWidget {
   final VocabularyWord word;
   final int index;
   final VoidCallback onTap;
@@ -329,8 +329,9 @@ class VocabularyCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isFavorited = ref.watch(vocabStudyProvider).favoriteVocabIds.contains(word.id);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
@@ -404,15 +405,20 @@ class VocabularyCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                // Right side: Navigation arrow to view details
+                // Right side: Navigation arrow or favorite star
                 Expanded(
                   flex: 2,
                   child: Align(
                     alignment: Alignment.centerRight,
-                    child: Icon(
-                      Icons.chevron_right,
-                      color: isDark ? Colors.white30 : Colors.grey.shade400,
-                      size: 26,
+                    child: IconButton(
+                      icon: Icon(
+                        isFavorited ? Icons.star : Icons.star_border,
+                        color: isFavorited ? Colors.amber : (isDark ? Colors.white30 : Colors.grey.shade400),
+                        size: 28,
+                      ),
+                      onPressed: () {
+                        ref.read(vocabStudyProvider.notifier).toggleFavorite(word.id);
+                      },
                     ),
                   ),
                 ),

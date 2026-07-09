@@ -308,7 +308,7 @@ class HomeScreen extends ConsumerWidget {
                   children: [
                     const Icon(Icons.star, color: Colors.amber, size: 22),
                     const SizedBox(width: 10),
-                    Text('Đã lưu dữ liệu', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: textColor)),
+                    Text('Mục yêu thích', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: textColor)),
                   ],
                 ),
               ),

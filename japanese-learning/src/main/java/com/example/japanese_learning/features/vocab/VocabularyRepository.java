@@ -21,4 +21,6 @@ public interface VocabularyRepository extends JpaRepository<Vocabulary, Long> {
 
     @Query("SELECT COUNT(v) FROM Vocabulary v WHERE v.jlptLevel = :jlptLevel AND v.lessonId = :lessonId")
     long countWordsInLesson(@Param("jlptLevel") JlptLevel jlptLevel, @Param("lessonId") String lessonId);
+
+    java.util.Optional<Vocabulary> findByWord(String word);
 }

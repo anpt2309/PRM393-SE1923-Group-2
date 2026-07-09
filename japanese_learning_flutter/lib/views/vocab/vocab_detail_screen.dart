@@ -9,13 +9,15 @@ import 'package:japanese_learning/views/vocab/widgets/cluster_map_widget.dart';
 // ─────────────────────────────────────────────────────────────
 
 class VocabDetailScreen extends ConsumerStatefulWidget {
-  final String lessonId;
-  final int initialIndex;
+  final String? lessonId;
+  final int? initialIndex;
+  final VocabularyWord? singleWord;
 
   const VocabDetailScreen({
     super.key,
-    required this.lessonId,
-    required this.initialIndex,
+    this.lessonId,
+    this.initialIndex,
+    this.singleWord,
   });
 
   @override
@@ -28,7 +30,7 @@ class _VocabDetailScreenState extends ConsumerState<VocabDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(initialPage: widget.initialIndex);
+    _pageController = PageController(initialPage: widget.singleWord != null ? 0 : (widget.initialIndex ?? 0));
   }
 
   @override
@@ -39,11 +41,16 @@ class _VocabDetailScreenState extends ConsumerState<VocabDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final studyState = ref.watch(vocabStudyProvider);
-    final currentLevel = studyState.selectedLevel;
-    final levelState = studyState.levels[currentLevel]!;
-    final lesson = levelState.lessons.firstWhere((l) => l.id == widget.lessonId);
-    final words = lesson.words;
+    final List<VocabularyWord> words;
+    if (widget.singleWord != null) {
+      words = [widget.singleWord!];
+    } else {
+      final studyState = ref.watch(vocabStudyProvider);
+      final currentLevel = studyState.selectedLevel;
+      final levelState = studyState.levels[currentLevel]!;
+      final lesson = levelState.lessons.firstWhere((l) => l.id == widget.lessonId);
+      words = lesson.words;
+    }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final scaffoldBg = isDark ? const Color(0xFF121212) : const Color(0xFFF5F5F5);

@@ -1039,7 +1039,7 @@ class _ExamHistoryReviewScreenState extends ConsumerState<ExamHistoryReviewScree
                 // Comments button
                 _buildToolbarButton(
                   icon: Icons.chat_bubble_outline,
-                  label: 'Bình luận (${commentList.length})',
+                  label: 'Bình luận',
                   onTap: () => _showCommentsPopup(index),
                 ),
               ],

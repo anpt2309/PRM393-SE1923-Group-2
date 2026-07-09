@@ -18,4 +18,10 @@ public class SentencePart {
 
     @Column(name = "part_title", nullable = false)
     private String partTitle;
+
+    @Column(name = "description")
+    private String description;
+
+    @Column(name = "icon")
+    private String icon;
 }

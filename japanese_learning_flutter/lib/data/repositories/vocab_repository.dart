@@ -22,4 +22,28 @@ class VocabRepository {
       return null;
     }
   }
+
+  Future<List<int>> getFavoriteVocabIds(int userId) async {
+    try {
+      return await _vocabService.fetchFavoriteVocabIds(userId);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<bool> toggleFavoriteVocab(int userId, int vocabId) async {
+    try {
+      return await _vocabService.toggleFavoriteVocab(userId, vocabId);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<List<VocabularyWord>> getFavoriteVocabs(int userId) async {
+    try {
+      return await _vocabService.fetchFavoriteVocabs(userId);
+    } catch (_) {
+      return [];
+    }
+  }
 }

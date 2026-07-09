@@ -33,4 +33,7 @@ public class SentenceItem {
 
     @Column(name = "audio_url", nullable = false)
     private String audioUrl;
+
+    @Column(name = "explanation", columnDefinition = "TEXT")
+    private String explanation;
 }

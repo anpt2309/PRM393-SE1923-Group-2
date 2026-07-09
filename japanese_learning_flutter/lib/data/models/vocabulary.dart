@@ -1,4 +1,5 @@
 class VocabularyWord {
+  final int id;
   final String word; // e.g. 食べる
   final String kanji; // e.g. 食 (THỰC)
   final String hiragana; // e.g. たべる
@@ -15,6 +16,7 @@ class VocabularyWord {
   final String pitchAccent; // e.g. Trọng âm: [2]
 
   VocabularyWord({
+    required this.id,
     required this.word,
     required this.kanji,
     required this.hiragana,
@@ -37,6 +39,7 @@ class VocabularyWord {
     final colList = colStr.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
 
     return VocabularyWord(
+      id: json['id'] as int? ?? 0,
       word: json['word'] as String? ?? '',
       kanji: json['kanji'] as String? ?? '',
       hiragana: json['reading'] as String? ?? '', // reading maps to hiragana
@@ -55,6 +58,7 @@ class VocabularyWord {
   }
 
   VocabularyWord copyWith({
+    int? id,
     String? word,
     String? kanji,
     String? hiragana,
@@ -71,6 +75,7 @@ class VocabularyWord {
     String? pitchAccent,
   }) {
     return VocabularyWord(
+      id: id ?? this.id,
       word: word ?? this.word,
       kanji: kanji ?? this.kanji,
       hiragana: hiragana ?? this.hiragana,

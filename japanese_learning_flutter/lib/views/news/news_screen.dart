@@ -4,12 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../providers/app_setting_provider.dart';
 import '../../../widgets/add_menu_button.dart';
+import '../../../providers/news_provider.dart';
+import '../../../providers/vocab_provider.dart';
+import '../../../data/models/news.dart';
+import '../../../data/models/vocabulary.dart';
 
 class NewsScreen extends ConsumerStatefulWidget {
-  // Thêm các tham số cấu hình giao diện động từ Settings truyền vào (hoặc dùng mặc định)
   final double initialFontSize;
   final bool initialDarkMode;
-  // Nếu màn hình này được mở từ trang Favorite để xem một bài viết cụ thể
   final Map<String, String>? targetArticle;
 
   const NewsScreen({
@@ -24,11 +26,8 @@ class NewsScreen extends ConsumerStatefulWidget {
 }
 
 class _NewsScreenState extends ConsumerState<NewsScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late TabController _tabController;
-  bool _showDetail = false;
-  String _currentSubTab = 'Script';
-  int _selectedTopicIndex = 0;
 
   // --- QUẢN LÝ CẤU HÌNH GIAO DIỆN NỘI BỘ (Khi cấu hình từ cài đặt nhanh) ---
   double? _customFontSize;
@@ -41,75 +40,24 @@ class _NewsScreenState extends ConsumerState<NewsScreen>
   Duration _position = Duration.zero;
   String? _currentlyPlayingUrl;
 
-  String _lastSavedTime = "19:30 - 30/05/2026";
-
   late TextEditingController _noteController;
-  Map<String, String>? _selectedArticle;
-
-  // DANH SÁCH BÀI BÁO MẪU static để đồng bộ dữ liệu giữa các màn hình
-  static final List<Map<String, String>> _mockArticles = [
-    {
-      'title': '「下着ユニバ」騒 động 女性インスタグラマーが「聖地巡礼」',
-      'subtitle': 'ネット衝撃「メンタル強すぎ」',
-      'image': 'https://picsum.photos/id/101/200/200',
-      'is_favorite': '0',
-      'audio_url':
-          'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'
-    },
-    {
-      'title': '日本の桜 開花予想2026 今年の見頃 là khi nào?',
-      'subtitle': '気象庁発表・旅行客に大人気',
-      'image': 'https://picsum.photos/id/102/200/200',
-      'is_favorite': '1',
-      'audio_url':
-          'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3'
-    },
-    {
-      'title': '東京スカイツリー 開業記念イベントが盛大に開催',
-      'subtitle': '限定ライトアップも実施中',
-      'image': 'https://picsum.photos/id/103/200/200',
-      'is_favorite': '0',
-      'audio_url':
-          'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3'
-    },
-    {
-      'title': '京都の古い町並みを守る 新たな取り組みがスタート',
-      'subtitle': '伝統文化 của Kinh Đô cổ kính',
-      'image': 'https://picsum.photos/id/104/200/200',
-      'is_favorite': '0',
-      'audio_url':
-          'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3'
-    },
-  ];
-
-  // Getter static để màn hình Favorite dễ dàng lấy danh sách bài viết đã lưu
-  static List<Map<String, String>> get favoriteArticles =>
-      _mockArticles.where((article) => article['is_favorite'] == '1').toList();
 
   @override
   void initState() {
     super.initState();
-    _noteController = TextEditingController(
-        text:
-            "- Cần chú ý cấu trúc cụm từ: 「聖地巡礼」(せいちじゅんれい) - Hành hương thánh địa.\n- Học thêm từ vựng N2: 巡る (めぐる).");
-
-    _tabController = TabController(length: 9, vsync: this);
-    _tabController.addListener(() {
-      if (_tabController.indexIsChanging) {
-        setState(() {
-          _selectedTopicIndex = _tabController.index;
-        });
-      }
-    });
-
-    // Nếu màn hình được mở chỉ định một bài viết cụ thể từ Favorite
-    if (widget.targetArticle != null) {
-      _selectedArticle = widget.targetArticle;
-      _showDetail = true;
-    }
+    _noteController = TextEditingController();
+    _tabController = TabController(length: 0, vsync: this);
 
     _audioPlayer = AudioPlayer();
     _setupAudioListeners();
+
+    Future.microtask(() {
+      if (widget.targetArticle != null) {
+        ref.read(newsProvider.notifier).selectArticleByMap(widget.targetArticle!);
+      } else {
+        ref.read(newsProvider.notifier).loadInitialData();
+      }
+    });
   }
 
   void _setupAudioListeners() {
@@ -163,20 +111,6 @@ class _NewsScreenState extends ConsumerState<NewsScreen>
     return "$minutes:$seconds";
   }
 
-  void _saveNoteToDatabase() {
-    final String content = _noteController.text.trim();
-    if (content.isEmpty) {
-      _showSnackBarShort('Vui lòng nhập nội dung trước khi lưu!');
-      return;
-    }
-    setState(() {
-      final now = DateTime.now();
-      _lastSavedTime =
-          "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} - ${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}";
-    });
-    _showSnackBarShort('Đã lưu ghi chú thành công!');
-  }
-
   void _showSnackBarShort(String message) {
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -191,11 +125,44 @@ class _NewsScreenState extends ConsumerState<NewsScreen>
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(appSettingProvider);
+    final newsState = ref.watch(newsProvider);
+
+    ref.listen<NewsState>(newsProvider, (previous, next) {
+      final prevArticle = previous?.selectedArticle;
+      final nextArticle = next.selectedArticle;
+      
+      if (nextArticle != null) {
+        if (prevArticle == null || prevArticle.id != nextArticle.id) {
+          _noteController.text = next.articleNotes[nextArticle.id] ?? '';
+        } else {
+          final prevNote = previous?.articleNotes[nextArticle.id] ?? '';
+          final nextNote = next.articleNotes[nextArticle.id] ?? '';
+          if (prevNote != nextNote && _noteController.text == prevNote) {
+            _noteController.text = nextNote;
+          }
+        }
+      }
+    });
+
     // 1. Khai báo biến cơ bản chỉ 1 lần
     final isCustomDark = _customDarkMode ?? settings.isDarkMode;
     final double scale = settings.textScaleFactor;
     final double currentFontSize =
         _customFontSize ?? (widget.initialFontSize * scale);
+
+    // Dynamic TabController recreation
+    if (newsState.categories.isNotEmpty &&
+        newsState.categories.length != _tabController.length) {
+      _tabController.dispose();
+      final selectedIndex = newsState.selectedCategory != null
+          ? newsState.categories.indexOf(newsState.selectedCategory!)
+          : 0;
+      _tabController = TabController(
+        length: newsState.categories.length,
+        vsync: this,
+        initialIndex: selectedIndex.clamp(0, newsState.categories.length - 1),
+      );
+    }
 
     // 2. Định nghĩa màu sắc
     final backgroundColor =
@@ -212,19 +179,21 @@ class _NewsScreenState extends ConsumerState<NewsScreen>
 
     return Scaffold(
       backgroundColor: backgroundColor,
-      appBar: _showDetail
+      appBar: newsState.showDetail
           ? _buildDetailAppBar(appBarColor, appBarTextColor)
-          : _buildListAppBar(appBarColor, appBarTextColor, tabBgColor),
-      body: _showDetail
-          ? _buildNewsDetailView(cardColor, textColor, subTextColor,
-              isCustomDark, currentFontSize, scale)
-          : _buildNewsListView(_mockArticles, cardColor, textColor,
-              subTextColor, currentFontSize),
+          : _buildListAppBar(newsState, appBarColor, appBarTextColor, tabBgColor),
+      body: newsState.isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : newsState.showDetail
+              ? _buildNewsDetailView(newsState, cardColor, textColor, subTextColor,
+                  isCustomDark, currentFontSize, scale)
+              : _buildNewsListView(newsState.articles, cardColor, textColor,
+                  subTextColor, currentFontSize),
     );
   }
 
   PreferredSizeWidget _buildListAppBar(
-      Color appBarColor, Color appBarTextColor, Color tabBgColor) {
+      NewsState newsState, Color appBarColor, Color appBarTextColor, Color tabBgColor) {
     return AppBar(
       title: Text('Tin Tức',
           style: TextStyle(
@@ -241,28 +210,29 @@ class _NewsScreenState extends ConsumerState<NewsScreen>
           width: double.infinity,
           height: 48,
           color: tabBgColor,
-          child: TabBar(
-            controller: _tabController,
-            isScrollable: true,
-            labelColor: const Color(0xFF1E88E5),
-            unselectedLabelColor: appBarTextColor,
-            indicator: const BoxDecoration(),
-            labelStyle:
-                const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
-            unselectedLabelStyle:
-                const TextStyle(fontWeight: FontWeight.normal, fontSize: 13.5),
-            tabs: const [
-              Tab(text: 'Easy News'),
-              Tab(text: 'Top'),
-              Tab(text: 'Chính Trị'),
-              Tab(text: 'Kinh Tế'),
-              Tab(text: 'Xã Hội'),
-              Tab(text: 'Giải Trí'),
-              Tab(text: 'Quốc Tế'),
-              Tab(text: 'Giáo Dục'),
-              Tab(text: 'Thể Thao'),
-            ],
-          ),
+          child: newsState.categories.isEmpty
+              ? const SizedBox.shrink()
+              : TabBar(
+                  controller: _tabController,
+                  isScrollable: true,
+                  labelColor: const Color(0xFF1E88E5),
+                  unselectedLabelColor: appBarTextColor,
+                  indicator: const BoxDecoration(),
+                  labelStyle:
+                      const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                  unselectedLabelStyle:
+                      const TextStyle(fontWeight: FontWeight.normal, fontSize: 13.5),
+                  onTap: (index) {
+                    if (index < newsState.categories.length) {
+                      ref
+                          .read(newsProvider.notifier)
+                          .selectCategory(newsState.categories[index]);
+                    }
+                  },
+                  tabs: newsState.categories
+                      .map((cat) => Tab(text: cat.categoryName))
+                      .toList(),
+                ),
         ),
       ),
     );
@@ -287,8 +257,8 @@ class _NewsScreenState extends ConsumerState<NewsScreen>
           if (widget.targetArticle != null) {
             Navigator.pop(context);
           } else {
+            ref.read(newsProvider.notifier).goBackToList();
             setState(() {
-              _showDetail = false;
               _isPlaying = false;
             });
           }
@@ -310,19 +280,21 @@ class _NewsScreenState extends ConsumerState<NewsScreen>
     );
   }
 
-  Widget _buildNewsListView(List<Map<String, String>> articlesSource,
+  Widget _buildNewsListView(List<NewsArticle> articlesSource,
       Color cardColor, Color textColor, Color subTextColor, double fontSize) {
     if (articlesSource.isEmpty) {
       return Center(
           child:
               Text("Không có bài viết nào", style: TextStyle(color: subTextColor)));
     }
+    final favoriteIds = ref.watch(newsProvider).favoriteArticleIds;
+
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       itemCount: articlesSource.length,
       itemBuilder: (context, index) {
         final article = articlesSource[index];
-        bool isStarred = article['is_favorite'] == '1';
+        bool isStarred = favoriteIds.contains(article.id);
 
         return Card(
           color: cardColor,
@@ -335,7 +307,7 @@ class _NewsScreenState extends ConsumerState<NewsScreen>
             leading: ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Image.network(
-                article['image']!,
+                article.imageUrl,
                 width: 75,
                 height: 75,
                 fit: BoxFit.cover,
@@ -347,7 +319,7 @@ class _NewsScreenState extends ConsumerState<NewsScreen>
                 ),
               ),
             ),
-            title: Text(article['title']!,
+            title: Text(article.title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -355,30 +327,28 @@ class _NewsScreenState extends ConsumerState<NewsScreen>
                     fontSize: fontSize,
                     height: 1.3,
                     color: textColor)),
-            subtitle: Padding(
-                padding: const EdgeInsets.only(top: 6.0),
-                child: Text(article['subtitle']!,
-                    style: TextStyle(fontSize: fontSize - 2, color: subTextColor))),
+            subtitle: article.description.isNotEmpty
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 6.0),
+                    child: Text(article.description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: fontSize - 2, color: subTextColor)))
+                : null,
             trailing: IconButton(
               icon: Icon(isStarred ? Icons.star : Icons.star_border,
                   color: isStarred ? Colors.amber : const Color(0xFF1E88E5),
                   size: 24),
               onPressed: () {
-                setState(() {
-                  if (article['is_favorite'] == '1') {
-                    article['is_favorite'] = '0';
-                    _showSnackBarShort('Đã bỏ lưu bài viết!');
-                  } else {
-                    article['is_favorite'] = '1';
-                    _showSnackBarShort('Đã lưu bài viết thành công!');
-                  }
-                });
+                ref.read(newsProvider.notifier).toggleFavorite(article.id);
+                _showSnackBarShort(isStarred
+                    ? 'Đã bỏ lưu bài viết!'
+                    : 'Đã lưu bài viết thành công!');
               },
             ),
             onTap: () {
+              ref.read(newsProvider.notifier).selectArticle(article);
               setState(() {
-                _selectedArticle = article;
-                _showDetail = true;
                 _position = Duration.zero;
                 _duration = Duration.zero;
               });
@@ -389,10 +359,11 @@ class _NewsScreenState extends ConsumerState<NewsScreen>
     );
   }
 
-  Widget _buildNewsDetailView(Color cardColor, Color textColor, Color subTextColor,
-      bool isDarkMode, double fontSize, double scale) {
-    if (_selectedArticle == null) return const SizedBox.shrink();
-    String audioUrl = _selectedArticle!['audio_url'] ?? '';
+  Widget _buildNewsDetailView(NewsState newsState, Color cardColor, Color textColor,
+      Color subTextColor, bool isDarkMode, double fontSize, double scale) {
+    final article = newsState.selectedArticle;
+    if (article == null) return const SizedBox.shrink();
+    String audioUrl = article.audioUrl;
 
     return Column(
       children: [
@@ -403,61 +374,25 @@ class _NewsScreenState extends ConsumerState<NewsScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                _selectedArticle!['title']!,
+                article.title,
                 style: TextStyle(
                     fontSize: fontSize + 1,
                     fontWeight: FontWeight.bold,
                     color: const Color(0xFF1E88E5),
                     height: 1.4),
               ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  IconButton(
-                    icon: Icon(
-                        _isPlaying && _currentlyPlayingUrl == audioUrl
-                            ? Icons.pause_circle_filled
-                            : Icons.play_circle_fill,
-                        color: const Color(0xFF1E88E5),
-                        size: 38),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    onPressed: () => _togglePlayback(audioUrl),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(_formatDuration(_position),
-                      style: const TextStyle(
-                          color: Color(0xFFE57373),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500)),
-                  Expanded(
-                    child: Slider(
-                      min: 0.0,
-                      max: _duration.inMilliseconds.toDouble() == 0.0
-                          ? 1.0
-                          : _duration.inMilliseconds.toDouble(),
-                      value: _position.inMilliseconds.toDouble().clamp(
-                          0.0,
-                          _duration.inMilliseconds.toDouble() == 0.0
-                              ? 1.0
-                              : _duration.inMilliseconds.toDouble()),
-                      activeColor: const Color(0xFF1E88E5),
-                      inactiveColor: isDarkMode ? Colors.white24 : Colors.black12,
-                      onChanged: (value) async {
-                        final seekPosition =
-                            Duration(milliseconds: value.toInt());
-                        await _audioPlayer.seek(seekPosition);
-                      },
-                    ),
-                  ),
-                  Text(_formatDuration(_duration),
-                      style: const TextStyle(
-                          color: Color(0xFFE57373),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500)),
-                ],
-              ),
-              const SizedBox(height: 8),
+              if (article.description.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  article.description,
+                  style: TextStyle(
+                      fontSize: fontSize - 1.5,
+                      fontStyle: FontStyle.italic,
+                      color: subTextColor,
+                      height: 1.4),
+                ),
+              ],
+              const SizedBox(height: 12),
               Container(
                 decoration: BoxDecoration(
                     color: isDarkMode
@@ -467,11 +402,11 @@ class _NewsScreenState extends ConsumerState<NewsScreen>
                 padding: const EdgeInsets.all(2),
                 child: Row(
                   children: [
-                    _buildSubTabButton('Script', subTextColor),
-                    _buildSubTabButton('Ẩn Hira', subTextColor),
-                    _buildSubTabButton('Dịch', subTextColor),
-                    _buildSubTabButton('Từ Vựng', subTextColor),
-                    _buildSubTabButton('Note', subTextColor),
+                    _buildSubTabButton('Script', subTextColor, newsState.currentSubTab),
+                    _buildSubTabButton('Ẩn Hira', subTextColor, newsState.currentSubTab),
+                    _buildSubTabButton('Dịch', subTextColor, newsState.currentSubTab),
+                    _buildSubTabButton('Từ Vựng', subTextColor, newsState.currentSubTab),
+                    _buildSubTabButton('Note', subTextColor, newsState.currentSubTab),
                   ],
                 ),
               ),
@@ -489,7 +424,7 @@ class _NewsScreenState extends ConsumerState<NewsScreen>
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               child: _buildContentLayoutByTab(
-                  textColor, subTextColor, isDarkMode, fontSize),
+                  article, newsState.currentSubTab, textColor, subTextColor, isDarkMode, fontSize),
             ),
           ),
         ),
@@ -497,11 +432,11 @@ class _NewsScreenState extends ConsumerState<NewsScreen>
     );
   }
 
-  Widget _buildSubTabButton(String title, Color subTextColor) {
-    bool isSelected = _currentSubTab == title;
+  Widget _buildSubTabButton(String title, Color subTextColor, String currentSubTab) {
+    bool isSelected = currentSubTab == title;
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _currentSubTab = title),
+        onTap: () => ref.read(newsProvider.notifier).changeSubTab(title),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 6),
           decoration: BoxDecoration(
@@ -519,12 +454,13 @@ class _NewsScreenState extends ConsumerState<NewsScreen>
   }
 
   Widget _buildContentLayoutByTab(
-      Color textColor, Color subTextColor, bool isDarkMode, double fontSize) {
-    bool showFurigana = _currentSubTab != 'Ẩn Hira';
-    bool showTranslation = _currentSubTab == 'Dịch';
-    bool showVocabList = _currentSubTab == 'Từ Vựng';
+      NewsArticle article, String currentSubTab, Color textColor, Color subTextColor, bool isDarkMode, double fontSize) {
+    bool showFurigana = currentSubTab != 'Ẩn Hira';
+    bool showTranslation = currentSubTab == 'Dịch';
+    bool showVocabList = currentSubTab == 'Từ Vựng';
 
-    if (_currentSubTab == 'Note') {
+    if (currentSubTab == 'Note') {
+      final savedTime = ref.read(newsProvider).noteSavedTimes[article.id] ?? "Chưa có";
       return Container(
         width: double.infinity,
         height: 320,
@@ -544,7 +480,7 @@ class _NewsScreenState extends ConsumerState<NewsScreen>
                 Row(children: [
                   const Icon(Icons.edit_note, color: Colors.amber, size: 22),
                   const SizedBox(width: 4),
-                  Text('Cập nhật: $_lastSavedTime',
+                  Text('Cập nhật: $savedTime',
                       style: TextStyle(
                           fontSize: 11,
                           color: subTextColor,
@@ -553,7 +489,10 @@ class _NewsScreenState extends ConsumerState<NewsScreen>
                 SizedBox(
                     height: 32,
                     child: TextButton(
-                        onPressed: _saveNoteToDatabase,
+                        onPressed: () {
+                          ref.read(newsProvider.notifier).saveNote(article.id, _noteController.text);
+                          _showSnackBarShort('Đã lưu ghi chú thành công!');
+                        },
                         style: TextButton.styleFrom(
                             backgroundColor: Colors.amber.shade600,
                             foregroundColor: Colors.white,
@@ -591,26 +530,14 @@ class _NewsScreenState extends ConsumerState<NewsScreen>
       children: [
         _buildParagraphBlock(
           showFurigana: showFurigana,
-          spans: [
-            _textSpan('「下着', 'したぎ', fontSize, textColor, subTextColor),
-            _textSpan('ユニバ」', '', fontSize, textColor, subTextColor),
-            _textSpan('騒動', 'そうどう', fontSize, textColor, subTextColor),
-            _textSpan('女性', 'じょせい', fontSize, textColor, subTextColor),
-            _textSpan('インスタグラマーが', '', fontSize, textColor, subTextColor),
-            _textSpan('“聖地', 'せいち', fontSize, textColor, subTextColor),
-            _textSpan('巡礼”', 'じゅんれい', fontSize, textColor, subTextColor),
-            _textSpan('「ちゃんと', '', fontSize, textColor, subTextColor),
-            _textSpan('服装た', 'ふくそうた', fontSize, textColor, subTextColor),
-            _textSpan('ネット', '', fontSize, textColor, subTextColor),
-            _textSpan('衝撃', 'しょうげき', fontSize, textColor, subTextColor),
-            _textSpan('「メンタル', '', fontSize, textColor, subTextColor),
-            _textSpan('強すぎ」', 'つよすぎ', fontSize, textColor, subTextColor),
-          ],
+          spans: article.spans
+              .map((s) => _textSpan(s.text, s.furigana, currentSubTab, fontSize, textColor, subTextColor))
+              .toList(),
         ),
         if (showTranslation) ...[
-          const SizedBox(height: 6),
+          const SizedBox(height: 12),
           Text(
-            'Vụ náo loạn "Underwear Univa" Một nữ Instagrammer "hành hương đến những nơi linh thiêng" và "ăn mặc chỉnh tề" đã tác động mạnh đến tinh thần "quá mạnh"',
+            article.contentTranslation,
             style: TextStyle(
                 color: const Color(0xFF29B6F6),
                 fontSize: fontSize,
@@ -623,24 +550,26 @@ class _NewsScreenState extends ConsumerState<NewsScreen>
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Divider(
                   color: isDarkMode ? Colors.white10 : Colors.black12)),
-          _buildVocabularyItem(
-              '1/ 楽しむ',
-              'たのしむ',
-              '[LẠC/NHẠC] Vui, tận hưởng, thưởng thức (enj...',
-              'N4',
+          if (article.vocabularies.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Text(
+                'Không có từ vựng tiêu biểu cho bài báo này.',
+                style: TextStyle(fontSize: fontSize, color: subTextColor),
+              ),
+            ),
+          ...article.vocabularies.asMap().entries.map((entry) {
+            final idx = entry.key + 1;
+            final v = entry.value;
+            return _buildVocabularyItem(
+              v,
+              '$idx/ ${v.word}',
               fontSize,
               textColor,
               subTextColor,
-              isDarkMode),
-          _buildVocabularyItem(
-              '2/ 公式',
-              'こうしき',
-              '[CÔNG THỨC] Công thức, định thức (非公式 :...',
-              'N2',
-              fontSize,
-              textColor,
-              subTextColor,
-              isDarkMode),
+              isDarkMode,
+            );
+          }),
         ],
       ],
     );
@@ -650,9 +579,9 @@ class _NewsScreenState extends ConsumerState<NewsScreen>
           {required bool showFurigana, required List<Widget> spans}) =>
       Wrap(spacing: 2, runSpacing: 10, children: spans);
 
-  Widget _textSpan(String text, String furigana, double fontSize,
+  Widget _textSpan(String text, String furigana, String currentSubTab, double fontSize,
       Color textColor, Color subTextColor) {
-    bool hasFurigana = _currentSubTab != 'Ẩn Hira' && furigana.isNotEmpty;
+    bool hasFurigana = currentSubTab != 'Ẩn Hira' && furigana.isNotEmpty;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -671,14 +600,15 @@ class _NewsScreenState extends ConsumerState<NewsScreen>
   }
 
   Widget _buildVocabularyItem(
-      String word,
-      String hira,
-      String meaning,
-      String level,
+      VocabularyWord vocab,
+      String indexLabel,
       double fontSize,
       Color textColor,
       Color subTextColor,
       bool isDarkMode) {
+    final favoriteVocabIds = ref.watch(vocabStudyProvider).favoriteVocabIds;
+    final isStarred = favoriteVocabIds.contains(vocab.id);
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Column(
@@ -686,12 +616,12 @@ class _NewsScreenState extends ConsumerState<NewsScreen>
         children: [
           Row(
             children: [
-              Text('$word  ',
+              Text('$indexLabel  ',
                   style: TextStyle(
                       fontSize: fontSize + 2,
                       fontWeight: FontWeight.bold,
                       color: const Color(0xFF1E88E5))),
-              Text(hira,
+              Text(vocab.hiragana,
                   style: TextStyle(
                       fontSize: fontSize + 1, color: const Color(0xFF1E88E5))),
               const Spacer(),
@@ -701,18 +631,32 @@ class _NewsScreenState extends ConsumerState<NewsScreen>
                   decoration: BoxDecoration(
                       color: Colors.blue.shade400,
                       borderRadius: BorderRadius.circular(4)),
-                  child: Text(level,
+                  child: Text(vocab.wordType,
                       style: const TextStyle(
                           fontSize: 11,
                           color: Colors.white,
                           fontWeight: FontWeight.bold))),
               const SizedBox(width: 8),
-              Icon(Icons.star_border, color: subTextColor, size: 22),
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                icon: Icon(
+                  isStarred ? Icons.star : Icons.star_border,
+                  color: isStarred ? Colors.amber : subTextColor,
+                  size: 24,
+                ),
+                onPressed: () {
+                  ref.read(vocabStudyProvider.notifier).toggleFavorite(vocab.id);
+                  _showSnackBarShort(isStarred
+                      ? 'Đã bỏ lưu từ vựng!'
+                      : 'Đã lưu từ vựng thành công!');
+                },
+              ),
               const SizedBox(width: 8),
             ],
           ),
           const SizedBox(height: 4),
-          Text(meaning,
+          Text(vocab.vietnameseMeaning,
               style: TextStyle(
                   fontSize: fontSize,
                   color: textColor,

@@ -81,19 +81,23 @@ class VocabLevelState {
 class VocabStudyState {
   final String selectedLevel; // 'N5', 'N4', 'N3', 'N2', 'N1'
   final Map<String, VocabLevelState> levels;
+  final Set<int> favoriteVocabIds;
 
   VocabStudyState({
     required this.selectedLevel,
     required this.levels,
+    this.favoriteVocabIds = const {},
   });
 
   VocabStudyState copyWith({
     String? selectedLevel,
     Map<String, VocabLevelState>? levels,
+    Set<int>? favoriteVocabIds,
   }) {
     return VocabStudyState(
       selectedLevel: selectedLevel ?? this.selectedLevel,
       levels: levels ?? this.levels,
+      favoriteVocabIds: favoriteVocabIds ?? this.favoriteVocabIds,
     );
   }
 }
@@ -112,12 +116,53 @@ class VocabStudyNotifier extends Notifier<VocabStudyState> {
         'N2': VocabLevelState(lessons: []),
         'N1': VocabLevelState(lessons: []),
       },
+      favoriteVocabIds: const {},
     );
 
-    // Load initial lessons for level N5
-    Future.microtask(() => loadLessonsForLevel('N5'));
+    // Load initial lessons for level N5 and favorites
+    Future.microtask(() {
+      loadLessonsForLevel('N5');
+      loadFavoriteVocabIds();
+    });
 
     return initialState;
+  }
+
+  Future<void> loadFavoriteVocabIds() async {
+    try {
+      final ids = await _repository.getFavoriteVocabIds(1);
+      state = state.copyWith(favoriteVocabIds: ids.toSet());
+    } catch (e) {
+      debugPrint("Error loading favorite vocab ids: $e");
+    }
+  }
+
+  Future<void> toggleFavorite(int vocabId) async {
+    final originalFavorites = state.favoriteVocabIds;
+    final isCurrentlyFavorited = originalFavorites.contains(vocabId);
+
+    // Optimistic update
+    final newFavorites = Set<int>.from(originalFavorites);
+    if (isCurrentlyFavorited) {
+      newFavorites.remove(vocabId);
+    } else {
+      newFavorites.add(vocabId);
+    }
+    state = state.copyWith(favoriteVocabIds: newFavorites);
+
+    try {
+      final serverState = await _repository.toggleFavoriteVocab(1, vocabId);
+      final finalFavorites = Set<int>.from(state.favoriteVocabIds);
+      if (serverState) {
+        finalFavorites.add(vocabId);
+      } else {
+        finalFavorites.remove(vocabId);
+      }
+      state = state.copyWith(favoriteVocabIds: finalFavorites);
+    } catch (e) {
+      debugPrint("Error toggling favorite: $e");
+      state = state.copyWith(favoriteVocabIds: originalFavorites);
+    }
   }
 
   Future<void> loadLessonsForLevel(String level) async {

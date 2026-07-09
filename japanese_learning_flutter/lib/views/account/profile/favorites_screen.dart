@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../data/models/news.dart';
+import '../../../data/models/vocabulary.dart';
+import '../../../data/repositories/news_repository.dart';
+import '../../../data/repositories/vocab_repository.dart';
 import '../../../providers/app_setting_provider.dart';
+import '../../../providers/news_provider.dart';
+import '../../../providers/vocab_provider.dart';
 import '../../../widgets/app_bar.dart';
-import 'package:japanese_learning/views/news/news_screen.dart';
+import '../../news/news_screen.dart';
+import '../../vocab/vocab_detail_screen.dart';
 
 class FavoritesScreen extends ConsumerStatefulWidget {
   const FavoritesScreen({super.key});
@@ -13,130 +20,126 @@ class FavoritesScreen extends ConsumerStatefulWidget {
 
 class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
   String selectedFilter = 'news';
-  List<Map<String, String>> favorites = [];
+  bool _isLoading = false;
+  List<NewsArticle> _newsFavorites = [];
+  List<VocabularyWord> _vocabFavorites = [];
+
+  final NewsRepository _newsRepository = NewsRepository();
+  final VocabRepository _vocabRepository = VocabRepository();
 
   @override
   void initState() {
     super.initState();
-    _loadFavorites(selectedFilter);
+    _fetchFavorites();
   }
 
-  void _loadFavorites(String type) {
+  Future<void> _fetchFavorites() async {
+    if (!mounted) return;
     setState(() {
-      favorites = type == 'news'
-          ? [
-        {
-          'title': '「下着ユニバ」騒動 女性インスタグラマーが「聖地巡礼」',
-          'subtitle': 'ネット衝撃「メンタル強すぎ」',
-          'image': 'https://picsum.photos/id/101/200/200',
-          'is_favorite': '1',
-          'audio_url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'
-        },
-        {
-          'title': '日本の桜、今年は例年より早く開花するか',
-          'subtitle': '気象庁の最新予測データ発表',
-          'image': 'https://picsum.photos/id/102/200/200',
-          'is_favorite': '1',
-          'audio_url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3'
-        },
-        {
-          'title': 'JLPT N5 読解対策：毎日の練習問題集',
-          'subtitle': '基礎から学ぶ日本語読解のコツ',
-          'image': 'https://picsum.photos/id/103/200/200',
-          'is_favorite': '1',
-          'audio_url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3'
+      _isLoading = true;
+    });
+
+    try {
+      if (selectedFilter == 'news') {
+        final list = await _newsRepository.getFavoriteArticles(1);
+        if (mounted) {
+          setState(() {
+            _newsFavorites = list;
+            _isLoading = false;
+          });
         }
-      ]
-          : [
-        {
-          'title': '勉強 (Học tập)',
-          'subtitle': 'Từ vựng thông dụng - Cấp độ N5',
-          'type': 'vocabulary'
-        },
-        {
-          'title': '学 (Học)',
-          'subtitle': 'Kanji cơ bản - 8 nét',
-          'type': 'kanji'
-        },
-        {
-          'title': 'Ngữ pháp N5: ～から～まで',
-          'subtitle': 'Video bài giảng thời lượng 5 phút',
-          'type': 'video'
-        },
-      ];
-    });
-  }
-
-  void _deleteFavorite(int index) {
-    final removedItem = favorites[index]['title'] ?? '';
-    setState(() {
-      favorites.removeAt(index);
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Đã xoá "$removedItem" khỏi danh sách yêu thích.'),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-  }
-
-  void _viewFavoriteDetail(Map<String, String> item, Color blockColor, Color textColor, Color subTextColor) {
-    if (selectedFilter == 'news') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => NewsScreen(
-            targetArticle: item,
-          ),
-        ),
-      );
-    } else {
-      showModalBottomSheet(
-        context: context,
-        backgroundColor: blockColor,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        builder: (context) => Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                item['title'] ?? '',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                item['subtitle'] ?? '',
-                style: TextStyle(fontSize: 13, color: subTextColor),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Đây là nội dung chi tiết của mục yêu thích. Bạn có thể xem chi tiết từ vựng, hán tự chữ cứng hoặc liên kết video tương ứng cấu hình trong hệ thống học tập.',
-                style: TextStyle(color: subTextColor.withValues(alpha: 0.8), height: 1.4, fontSize: 14),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close, size: 18),
-                label: const Text('Đóng'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blueAccent,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: 0,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+      } else {
+        final list = await _vocabRepository.getFavoriteVocabs(1);
+        if (mounted) {
+          setState(() {
+            _vocabFavorites = list;
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching favorites: $e");
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
+  }
+
+  Future<void> _deleteFavoriteNews(NewsArticle article) async {
+    try {
+      setState(() {
+        _newsFavorites.removeWhere((item) => item.id == article.id);
+      });
+      await _newsRepository.toggleFavoriteArticle(1, article.id);
+      ref.read(newsProvider.notifier).loadFavoriteArticleIds();
+      
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Đã xoá "${article.title}" khỏi danh sách yêu thích.'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    } catch (e) {
+      debugPrint("Error deleting favorite news: $e");
+    }
+  }
+
+  Future<void> _deleteFavoriteVocab(VocabularyWord word) async {
+    try {
+      setState(() {
+        _vocabFavorites.removeWhere((item) => item.id == word.id);
+      });
+      await _vocabRepository.toggleFavoriteVocab(1, word.id);
+      ref.read(vocabStudyProvider.notifier).loadFavoriteVocabIds();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Đã xoá "${word.word}" khỏi danh sách yêu thích.'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    } catch (e) {
+      debugPrint("Error deleting favorite vocab: $e");
+    }
+  }
+
+  void _viewNewsDetail(NewsArticle article) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => NewsScreen(
+          targetArticle: {
+            'id': article.id.toString(),
+            'title': article.title,
+          },
+        ),
+      ),
+    ).then((_) {
+      // Reload on returning in case they unfavorited inside the screen
+      _fetchFavorites();
+    });
+  }
+
+  void _viewVocabDetail(VocabularyWord word) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => VocabDetailScreen(
+          singleWord: word,
+        ),
+      ),
+    ).then((_) {
+      // Reload on returning in case they unfavorited inside the screen
+      _fetchFavorites();
+    });
   }
 
   @override
@@ -149,6 +152,8 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
     final blockColor = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
     final textColor = isDarkMode ? Colors.white : Colors.black87;
     final subTextColor = isDarkMode ? Colors.white60 : Colors.black54;
+
+    final hasItems = selectedFilter == 'news' ? _newsFavorites.isNotEmpty : _vocabFavorites.isNotEmpty;
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -183,12 +188,12 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                         style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 15),
                         items: const [
                           DropdownMenuItem(value: 'news', child: Text('Tin tức')),
-                          DropdownMenuItem(value: 'items', child: Text('Từ vựng & Kanji')),
+                          DropdownMenuItem(value: 'items', child: Text('Từ vựng')),
                         ],
                         onChanged: (value) {
                           if (value != null) {
                             setState(() => selectedFilter = value);
-                            _loadFavorites(value);
+                            _fetchFavorites();
                           }
                         },
                       ),
@@ -199,71 +204,131 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
             ),
           ),
           Expanded(
-            child: favorites.isEmpty
-                ? Center(
-              child: Text(
-                'Chưa có mục yêu thích nào.',
-                style: TextStyle(color: subTextColor.withValues(alpha: 0.6), fontSize: 15),
-              ),
-            )
-                : ListView.builder(
-              itemCount: favorites.length,
-              padding: const EdgeInsets.only(bottom: 16),
-              itemBuilder: (context, index) {
-                final item = favorites[index];
-                return Card(
-                  color: blockColor,
-                  elevation: 0,
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: (isDarkMode ? Colors.white : Colors.black).withValues(alpha: 0.05),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        selectedFilter == 'news'
-                            ? Icons.article_outlined
-                            : Icons.favorite_outline,
-                        color: subTextColor.withValues(alpha: 0.7),
-                        size: 22 * scale,
-                      ),
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      color: Colors.blueAccent,
                     ),
-                    title: Text(
-                      item['title'] ?? '',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontWeight: FontWeight.w500, fontSize: 15, color: textColor),
-                    ),
-                    subtitle: item['subtitle'] != null
-                        ? Text(
-                      item['subtitle']!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: subTextColor.withValues(alpha: 0.7)),
-                    )
-                        : null,
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.visibility_outlined, color: Colors.blueAccent, size: 22 * scale),
-                          onPressed: () => _viewFavoriteDetail(item, blockColor, textColor, subTextColor),
+                  )
+                : !hasItems
+                    ? Center(
+                        child: Text(
+                          'Chưa có mục yêu thích nào.',
+                          style: TextStyle(color: subTextColor.withValues(alpha: 0.6), fontSize: 15),
                         ),
-                        IconButton(
-                          icon: Icon(Icons.delete_outline, color: subTextColor.withValues(alpha: 0.6), size: 22 * scale),
-                          onPressed: () => _deleteFavorite(index),
-                        ),
-                      ],
-                    ),
-                    onTap: () => _viewFavoriteDetail(item, blockColor, textColor, subTextColor),
-                  ),
-                );
-              },
-            ),
+                      )
+                    : selectedFilter == 'news'
+                        ? ListView.builder(
+                            itemCount: _newsFavorites.length,
+                            padding: const EdgeInsets.only(bottom: 16),
+                            itemBuilder: (context, index) {
+                              final article = _newsFavorites[index];
+                              return Card(
+                                color: blockColor,
+                                elevation: 0,
+                                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                child: ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                  leading: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: (isDarkMode ? Colors.white : Colors.black).withValues(alpha: 0.05),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.article_outlined,
+                                      color: subTextColor.withValues(alpha: 0.7),
+                                      size: 22 * scale,
+                                    ),
+                                  ),
+                                  title: Text(
+                                    article.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(fontWeight: FontWeight.w500, fontSize: 15, color: textColor),
+                                  ),
+                                  subtitle: article.description != null && article.description!.isNotEmpty
+                                      ? Text(
+                                          article.description!,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(fontSize: 12, color: subTextColor.withValues(alpha: 0.7)),
+                                        )
+                                      : null,
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(Icons.visibility_outlined, color: Colors.blueAccent, size: 22 * scale),
+                                        onPressed: () => _viewNewsDetail(article),
+                                      ),
+                                      IconButton(
+                                        icon: Icon(Icons.delete_outline, color: subTextColor.withValues(alpha: 0.6), size: 22 * scale),
+                                        onPressed: () => _deleteFavoriteNews(article),
+                                      ),
+                                    ],
+                                  ),
+                                  onTap: () => _viewNewsDetail(article),
+                                ),
+                              );
+                            },
+                          )
+                        : ListView.builder(
+                            itemCount: _vocabFavorites.length,
+                            padding: const EdgeInsets.only(bottom: 16),
+                            itemBuilder: (context, index) {
+                              final word = _vocabFavorites[index];
+                              final subTitleText = '${word.hiragana} - ${word.vietnameseMeaning}';
+                              return Card(
+                                color: blockColor,
+                                elevation: 0,
+                                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                child: ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                  leading: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: (isDarkMode ? Colors.white : Colors.black).withValues(alpha: 0.05),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.favorite_outline,
+                                      color: subTextColor.withValues(alpha: 0.7),
+                                      size: 22 * scale,
+                                    ),
+                                  ),
+                                  title: Text(
+                                    word.word,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(fontWeight: FontWeight.w500, fontSize: 15, color: textColor),
+                                  ),
+                                  subtitle: Text(
+                                    subTitleText,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(fontSize: 12, color: subTextColor.withValues(alpha: 0.7)),
+                                  ),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(Icons.visibility_outlined, color: Colors.blueAccent, size: 22 * scale),
+                                        onPressed: () => _viewVocabDetail(word),
+                                      ),
+                                      IconButton(
+                                        icon: Icon(Icons.delete_outline, color: subTextColor.withValues(alpha: 0.6), size: 22 * scale),
+                                        onPressed: () => _deleteFavoriteVocab(word),
+                                      ),
+                                    ],
+                                  ),
+                                  onTap: () => _viewVocabDetail(word),
+                                ),
+                              );
+                            },
+                          ),
           ),
         ],
       ),
