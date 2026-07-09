@@ -1,4 +1,4 @@
-// lib/vocab_kanji_grammar/my_sets_screen.dart
+// lib/vocab/my_sets_screen.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 

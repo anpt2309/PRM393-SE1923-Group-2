@@ -1,4 +1,4 @@
-// lib/vocab_kanji_grammar/quiz_screen.dart
+// lib/vocab/quiz_screen.dart
 import 'package:flutter/material.dart';
 
 class QuizScreen extends StatefulWidget {

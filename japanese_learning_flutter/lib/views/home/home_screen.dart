@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/app_setting_provider.dart';
+import 'japanese_search_screen.dart';
 
 // --- CÁC MÀN HÌNH ĐÍch TẠM THỜI ---
 
@@ -167,93 +168,8 @@ class HomeScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 20),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isDarkMode ? const Color(0xFF2D2D2D) : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                if (!isDarkMode)
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  )
-              ],
-            ),
-            child: Column(
-              children: [
-                GestureDetector(
-                  onTap: () => context.push('/search'),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: isDarkMode ? const Color(0xFF1E1E1E) : const Color(0xFFF1F3F6),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.search, color: isDarkMode ? Colors.white54 : Colors.black38, size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            '日本, nihon, Nhật Bản,...',
-                            style: TextStyle(color: isDarkMode ? Colors.white38 : Colors.black38, fontSize: 14),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: isDarkMode ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text('ja ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDarkMode ? Colors.blueAccent : const Color(0xFF1E88E5))),
-                              Text('vi', style: TextStyle(fontSize: 11, color: isDarkMode ? Colors.white60 : Colors.black54)),
-                            ],
-                          ),
-                        )
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildSearchToolButton(Icons.camera_alt_outlined, () => _navigateToFeature(context, 'vocab'), isDarkMode),
-                    _buildSearchToolButton(Icons.g_translate_outlined, () => _navigateToFeature(context, 'kanji'), isDarkMode),
-                    _buildSearchToolButton(Icons.keyboard_voice_outlined, () => _navigateToFeature(context, 'grammar'), isDarkMode),
-                    _buildSearchToolButton(Icons.gesture_outlined, () => _navigateToFeature(context, 'sentences'), isDarkMode),
-                  ],
-                ),
-              ],
-            ),
-          ),
+          const JapaneseSearchWidget(),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSearchToolButton(IconData iconData, VoidCallback onTap, bool isDarkMode) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
-        decoration: BoxDecoration(
-          color: isDarkMode ? Colors.white.withValues(alpha: 0.04) : const Color(0xFF1E88E5).withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(
-          iconData,
-          color: isDarkMode ? Colors.blueAccent : const Color(0xFF1E88E5),
-          size: 22,
-        ),
       ),
     );
   }

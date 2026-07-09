@@ -24,10 +24,10 @@ import 'package:japanese_learning/views/payment/payment_history_screen.dart';
 import 'package:japanese_learning/views/rewards/reward_shop_screen.dart';
 import 'package:japanese_learning/views/rewards/streak_calendar_screen.dart';
 import 'package:japanese_learning/views/flashcard/create_flashcard_screen.dart';
-import 'package:japanese_learning/views/vocab_kanji_grammar/grammar_study_screen.dart';
-import 'package:japanese_learning/views/vocab_kanji_grammar/japanese_search_screen.dart';
-import 'package:japanese_learning/views/vocab_kanji_grammar/kanji_study_screen.dart';
-import 'package:japanese_learning/views/vocab_kanji_grammar/vocab_study_screen.dart';
+import 'package:japanese_learning/views/grammar/grammar_study_screen.dart';
+import 'package:japanese_learning/views/home/japanese_search_screen.dart';
+import 'package:japanese_learning/views/kanji/kanji_study_screen.dart';
+import 'package:japanese_learning/views/vocab/vocab_study_screen.dart';
 import 'package:japanese_learning/data/models/exam.dart';
 
 /// Định nghĩa các đường dẫn route tập trung tại một nơi.

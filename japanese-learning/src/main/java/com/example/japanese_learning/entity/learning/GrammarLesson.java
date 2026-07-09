@@ -27,4 +27,13 @@ public class GrammarLesson {
     @Enumerated(EnumType.STRING)
     @Column(name = "jlpt_level")
     private JlptLevel jlptLevel;
+
+    @Column(name = "formula_json", columnDefinition = "TEXT")
+    private String formulaJson;
+
+    @Column(name = "example_anatomy_json", columnDefinition = "TEXT")
+    private String exampleAnatomyJson;
+
+    @Column(name = "formality_nuance")
+    private Double formalityNuance;
 }

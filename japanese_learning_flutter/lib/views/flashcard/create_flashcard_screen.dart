@@ -1,4 +1,4 @@
-// lib/vocab_kanji_grammar/create_set_screen.dart
+// lib/vocab/create_set_screen.dart
 import 'package:flutter/material.dart';
 
 class CreateSetScreen extends StatefulWidget {
