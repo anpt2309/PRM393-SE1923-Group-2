@@ -13,8 +13,10 @@ class AuthErrorMapper {
   static AuthException fromPasswordReset(FirebaseAuthException e) =>
       AuthException(_passwordResetMessage(e.code), code: e.code);
 
-  static AuthException unexpected(Object e) =>
-      AuthException('Đã xảy ra lỗi không mong đợi. Vui lòng thử lại.', code: e.toString());
+  static AuthException unexpected(Object e) {
+    final message = e is Exception ? e.toString() : 'Đã xảy ra lỗi không mong đợi.';
+    return AuthException(message, code: 'unexpected');
+  }
 
   static String _registerMessage(String code) => switch (code) {
         'email-already-in-use' => 'Email này đã được đăng ký. Vui lòng dùng email khác.',
@@ -27,8 +29,10 @@ class AuthErrorMapper {
 
   static String _signInMessage(String code) => switch (code) {
         'invalid-email' => 'Định dạng email không chính xác.',
-        'user-not-found' || 'wrong-password' || 'invalid-credential' =>
-          'Email hoặc mật khẩu không chính xác.',
+        'user-not-found' => 'Email này chưa được đăng ký trên hệ thống.',
+        'wrong-password' => 'Mật khẩu không chính xác.',
+        'weak-password' => 'Mật khẩu quá ngắn. Cần tối thiểu 6 ký tự.',
+        'invalid-credential' => 'Thông tin đăng nhập không chính xác.',
         'user-disabled' => 'Tài khoản này đã bị vô hiệu hoá. Liên hệ hỗ trợ.',
         'too-many-requests' => 'Đăng nhập thất bại quá nhiều lần. Thử lại sau ít phút.',
         'network-request-failed' => 'Không có kết nối mạng. Vui lòng kiểm tra lại.',

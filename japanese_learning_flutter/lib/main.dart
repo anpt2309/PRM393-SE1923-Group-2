@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 import 'routes/app_router.dart';
 import 'providers/app_setting_provider.dart';
@@ -9,13 +10,23 @@ void main() async {
   // Kích hoạt Flutter sẵn sàng trước khi chạy lệnh ẩn (async)
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Khởi tạo SharedPreferences trước khi chạy App
+  final sharedPreferences = await SharedPreferences.getInstance();
+
   // Kích hoạt Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  // ProviderScope bọc 1 lần duy nhất — toàn bộ team tự do thêm provider mới
-  // mà không cần đụng vào file main.dart này nữa.
-  runApp(const ProviderScope(child: MyApp()));
+
+  runApp(
+    ProviderScope(
+      overrides: [
+        // Cung cấp instance SharedPreferences vào hệ thống Riverpod
+        sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends ConsumerWidget {

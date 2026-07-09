@@ -1,14 +1,15 @@
 import 'package:go_router/go_router.dart';
 import 'package:japanese_learning/views/account/authen/login_screen.dart';
 import 'package:japanese_learning/views/account/authen/register_screen.dart';
-import 'package:japanese_learning/views/account/news/news_screen.dart';
+import 'package:japanese_learning/views/account/authen/forgot_password_screen.dart';
+import 'package:japanese_learning/views/news/news_screen.dart';
 import 'package:japanese_learning/views/account/profile/favorites_screen.dart';
 import 'package:japanese_learning/views/account/profile/learning_stats_screen.dart';
 import 'package:japanese_learning/views/account/profile/personal_info_screen.dart';
 import 'package:japanese_learning/views/account/profile/profile_screen.dart';
 import 'package:japanese_learning/views/account/profile/security_screen.dart';
 import 'package:japanese_learning/views/account/profile/settings_screen.dart';
-import 'package:japanese_learning/views/account/sample_sentence/sentence_screen.dart';
+import 'package:japanese_learning/views/sample_sentence/sentence_screen.dart';
 import 'package:japanese_learning/views/exam/exam_detail_screen.dart';
 import 'package:japanese_learning/views/exam/exam_list_screen.dart';
 import 'package:japanese_learning/views/exam_attempt/exam_attempt_screen.dart';
@@ -36,6 +37,7 @@ class AppRoutes {
   static const home = '/';
   static const login = '/login';
   static const register = '/register';
+  static const forgotPassword = '/forgot-password';
 
   // Exam
   static const exams = '/exams';
@@ -94,11 +96,31 @@ final appRouter = GoRouter(
     // ─── Xác thực ────────────────────────────────────────────
     GoRoute(
       path: AppRoutes.login,
-      builder: (context, state) => const LoginScreen(),
+      builder: (context, state) {
+        final email = state.uri.queryParameters['email'];
+        return LoginScreen(initialEmail: email);
+      },
     ),
     GoRoute(
       path: AppRoutes.register,
-      builder: (context, state) => const RegisterScreen(),
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        return RegisterScreen(
+          prefilledEmail: extra?['email'],
+          prefilledPassword: extra?['password'],
+        );
+      },
+    ),
+    GoRoute(
+      path: AppRoutes.forgotPassword,
+      builder: (context, state) {
+        final email = state.uri.queryParameters['email'];
+        final from = state.uri.queryParameters['from'];
+        return ForgotPasswordScreen(
+          initialEmail: email,
+          initialFrom: from,
+        );
+      },
     ),
 
     // ─── Đề thi (Exam) ────────────────────────────────────────
