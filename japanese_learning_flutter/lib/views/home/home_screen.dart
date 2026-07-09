@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/app_setting_provider.dart';
+import '../../providers/auth_provider.dart';
 
 // --- CÁC MÀN HÌNH ĐÍch TẠM THỜI ---
 
@@ -113,6 +114,22 @@ class HomeScreen extends ConsumerWidget {
 
   // --- 1. KHỐI HEADER ---
   Widget _buildDbHeaderSection(BuildContext context, WidgetRef ref, Color cardColor, Color textColor, Color subTextColor, bool isDarkMode) {
+    final authState = ref.watch(authProvider);
+    final userPhoto = authState.photoUrl;
+    final userName = authState.displayName ?? (authState.isSignedIn ? authState.email?.split('@')[0] : 'Người dùng');
+
+    // Logic chào hỏi thông minh theo thời gian thực
+    final now = DateTime.now();
+    final hour = now.hour;
+    String greeting;
+    if (hour < 12) {
+      greeting = 'Chào buổi sáng 🌤️';
+    } else if (hour < 18) {
+      greeting = 'Chào buổi chiều ☀️';
+    } else {
+      greeting = 'Chào buổi tối 🌙';
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 54, 16, 20),
@@ -134,9 +151,12 @@ class HomeScreen extends ConsumerWidget {
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 1.5),
                   ),
-                  child: const CircleAvatar(
+                  child: CircleAvatar(
                     radius: 22,
-                    backgroundImage: NetworkImage('https://picsum.photos/id/1025/100/100'),
+                    backgroundColor: Colors.grey.shade200,
+                    backgroundImage: userPhoto != null
+                        ? NetworkImage('$userPhoto${userPhoto.contains('?') ? '&' : '?'}t=${authState.avatarTimestamp}')
+                        : const NetworkImage('https://cdn-icons-png.flaticon.com/512/149/149071.png'),
                   ),
                 ),
               ),
@@ -144,12 +164,12 @@ class HomeScreen extends ConsumerWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Phạm Thị Mai',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                  Text(
+                    userName ?? 'Người dùng',
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   const SizedBox(height: 4),
-                  Text('Chào buổi sáng 🌤️', style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13)),
+                  Text(greeting, style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13)),
                 ],
               ),
               const Spacer(),

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../../providers/app_setting_provider.dart';
-import '../../../providers/auth_provider.dart';
 import '../../../widgets/app_bar.dart';
 
 class LearningStatsScreen extends ConsumerWidget {
@@ -10,26 +8,17 @@ class LearningStatsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final settings = ref.watch(appSettingProvider);
-    final isCustomDark = settings.isDarkMode;
-    final double scale = settings.textScaleFactor;
+    final appSettings = ref.watch(appSettingProvider);
+    final isDarkMode = appSettings.isDarkMode;
+    final double scale = appSettings.textScaleFactor;
 
-    final authState = ref.watch(authProvider);
-    final user = authState.user;
-    final displayName = user?.displayName ?? 'Phạm Thị Mai';
-    final photoUrl = user?.photoURL ?? 'https://picsum.photos/200';
-
-    // Bảng màu cục bộ đồng bộ với hệ thống Theme trang Profile/Settings
-    final backgroundColor =
-        isCustomDark ? const Color(0xFF121212) : const Color(0xFFF8F9FA);
-    final blockColor = isCustomDark ? const Color(0xFF1E1E1E) : Colors.white;
-    final textColor = isCustomDark ? Colors.white : Colors.black87;
-    final subTextColor = isCustomDark ? Colors.white60 : Colors.black54;
-    final dividerColor =
-        isCustomDark ? Colors.white10 : const Color(0xFFF1F3F5);
-    final borderColor = isCustomDark
-        ? Colors.white.withValues(alpha: 0.05)
-        : Colors.grey.shade100;
+    // Bảng màu cục bộ đồng bộ 100% với hệ thống Theme trang Profile/Settings
+    final backgroundColor = isDarkMode ? const Color(0xFF121212) : const Color(0xFFF8F9FA);
+    final blockColor = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isDarkMode ? Colors.white : Colors.black87;
+    final subTextColor = isDarkMode ? Colors.white60 : Colors.black54;
+    final dividerColor = isDarkMode ? Colors.white10 : const Color(0xFFF1F3F5);
+    final borderColor = isDarkMode ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100;
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -40,7 +29,7 @@ class LearningStatsScreen extends ConsumerWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // --- 1. KHỐI THÔNG TIN NGƯỜI DÙNG (Tràn viền, co giãn động theo theme) ---
+            // --- 1. KHỐI THÔNG TIN NGƯỜI DÙNG ---
             Container(
               color: blockColor,
               width: double.infinity,
@@ -49,12 +38,10 @@ class LearningStatsScreen extends ConsumerWidget {
                 children: [
                   CircleAvatar(
                     radius: 40 * scale,
-                    backgroundColor: isCustomDark
-                        ? const Color(0xFF2C2C2C)
-                        : Colors.grey.shade100,
+                    backgroundColor: isDarkMode ? const Color(0xFF2C2C2C) : Colors.grey.shade100,
                     child: ClipOval(
                       child: Image.network(
-                        photoUrl,
+                        'https://picsum.photos/200',
                         width: 80 * scale,
                         height: 80 * scale,
                         fit: BoxFit.cover,
@@ -63,25 +50,19 @@ class LearningStatsScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    displayName,
-                    style: TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.bold,
-                        color: textColor),
+                    'Phạm Thị Mai',
+                    style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold, color: textColor),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     'Coin: 575   🔥 Streak: 7 ngày',
-                    style: TextStyle(
-                        color: subTextColor,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500),
+                    style: TextStyle(color: subTextColor, fontSize: 13, fontWeight: FontWeight.w500),
                   ),
                 ],
               ),
             ),
 
-            // --- 2. KHỐI CARD TÍNH NĂNG THỐNG KÊ (Đã tích hợp DarkMode & Scale) ---
+            // --- 2. KHỐI CARD TÍNH NĂNG THỐNG KÊ ---
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Card(
@@ -94,55 +75,19 @@ class LearningStatsScreen extends ConsumerWidget {
                 ),
                 child: Column(
                   children: [
-                    _buildStatsTile(
-                      'Chuỗi ngày học',
-                      Icons.calendar_month,
-                      '7 ngày liên tiếp',
-                      textColor,
-                      subTextColor,
-                      scale,
-                      onTap: () => context.push('/streak'),
-                    ),
+                    _buildStatsTile('Chuỗi ngày học', Icons.calendar_month, '7 ngày liên tiếp', textColor, subTextColor, scale),
                     Divider(height: 1, color: dividerColor, indent: 54),
-                    _buildStatsTile(
-                      'Lịch sử coin',
-                      Icons.monetization_on_outlined,
-                      'Giao dịch gần nhất: +50 coin',
-                      textColor,
-                      subTextColor,
-                      scale,
-                      onTap: () => context.push('/payment/history', extra: 575),
-                    ),
+
+                    _buildStatsTile('Lịch sử coin', Icons.monetization_on_outlined, 'Giao dịch gần nhất: +50 coin', textColor, subTextColor, scale),
                     Divider(height: 1, color: dividerColor, indent: 54),
-                    _buildStatsTile(
-                      'Phần thưởng đã đổi',
-                      Icons.card_giftcard,
-                      '2 phần thưởng',
-                      textColor,
-                      subTextColor,
-                      scale,
-                      onTap: () => context.push('/rewards', extra: 575),
-                    ),
+
+                    _buildStatsTile('Phần thưởng đã đổi', Icons.card_giftcard, '2 phần thưởng', textColor, subTextColor, scale),
                     Divider(height: 1, color: dividerColor, indent: 54),
-                    _buildStatsTile(
-                      'Tiến trình học thẻ',
-                      Icons.style_outlined,
-                      '60% hoàn thành',
-                      textColor,
-                      subTextColor,
-                      scale,
-                      onTap: () => context.push('/flashcards'),
-                    ),
+
+                    _buildStatsTile('Tiến trình học thẻ', Icons.style_outlined, '60% hoàn thành', textColor, subTextColor, scale),
                     Divider(height: 1, color: dividerColor, indent: 54),
-                    _buildStatsTile(
-                      'Lịch sử thi JLPT',
-                      Icons.school_outlined,
-                      'Điểm gần nhất: 85/100',
-                      textColor,
-                      subTextColor,
-                      scale,
-                      onTap: () => context.push('/exams/0/history'),
-                    ),
+
+                    _buildStatsTile('Lịch sử thi JLPT', Icons.school_outlined, 'Điểm gần nhất: 85/100', textColor, subTextColor, scale),
                   ],
                 ),
               ),
@@ -153,35 +98,32 @@ class LearningStatsScreen extends ConsumerWidget {
     );
   }
 
-  // Hàm bổ trợ vẽ mục danh sách phẳng
   Widget _buildStatsTile(
-    String title,
-    IconData icon,
-    String subtitle,
-    Color textColor,
-    Color subTextColor,
-    double scale, {
-    VoidCallback? onTap,
-  }) {
+      String title,
+      IconData icon,
+      String subtitle,
+      Color textColor,
+      Color subTextColor,
+      double scale,
+      ) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: Icon(icon, color: subTextColor, size: 22 * scale),
       title: Text(
         title,
-        style: TextStyle(
-            fontSize: 14, fontWeight: FontWeight.w500, color: textColor),
+        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: textColor),
       ),
       subtitle: Padding(
         padding: const EdgeInsets.only(top: 2.0),
         child: Text(
           subtitle,
-          style: TextStyle(
-              color: subTextColor.withValues(alpha: 0.7), fontSize: 12),
+          style: TextStyle(color: subTextColor.withValues(alpha: 0.7), fontSize: 12),
         ),
       ),
-      trailing: Icon(Icons.arrow_forward_ios,
-          size: 13 * scale, color: subTextColor.withValues(alpha: 0.4)),
-      onTap: onTap,
+      trailing: Icon(Icons.arrow_forward_ios, size: 13 * scale, color: subTextColor.withValues(alpha: 0.4)),
+      onTap: () {
+        // Logic mở chi tiết thống kê học tập
+      },
     );
   }
 }
