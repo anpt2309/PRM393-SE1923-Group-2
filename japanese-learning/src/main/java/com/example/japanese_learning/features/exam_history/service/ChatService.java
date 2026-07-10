@@ -37,11 +37,11 @@ public class ChatService {
     public String callAPIModelAI(Long userId, ChatRequest request) {
         User user = userRepository.findById(userId).orElseThrow(()
                 -> new RuntimeException("Người dùng không tồn tại"));
-        
+
         final String conversationId = (request.getQuestionId() != null)
                 ? "user_" + user.getId() + "_question_" + request.getQuestionId()
                 : "user_" + user.getId();
-        
+
         String systemInstruction = "You are Japanese_Learning AI. Please respond in a friendly and helpful manner.";
 
         if (request.getQuestionId() != null) {
@@ -63,12 +63,12 @@ public class ChatService {
              systemInstruction = String.format("""
                 Bạn là một trợ lý ảo hỗ trợ học tiếng Nhật chuyên nghiệp và thân thiện.
                 Mục tiêu duy nhất của bạn là giải thích ngắn gọn câu hỏi ôn tập dưới đây cho người dùng.
-                
+
                 Thông tin câu hỏi hiện tại:
                 - Nội dung câu hỏi: %s
                 - Các lựa chọn đáp án:
                 %s
-                
+
                 RÀNG BUỘC QUAN TRỌNG:
                 1. Bạn CHỈ được phép trả lời các câu hỏi liên quan trực tiếp đến câu hỏi tiếng Nhật trên (ví dụ: giải thích ngữ pháp, từ vựng, tại sao chọn đáp án đó, dịch nghĩa, phân tích cấu trúc câu).
                 2. Nếu người dùng hỏi câu hỏi ngoài lề hoặc không liên quan đến câu hỏi ôn tập này (ví dụ: hỏi về lập trình, toán học, thời tiết, viết code, tán gẫu ngoài lề, hoặc các chủ đề tiếng Nhật khác không liên quan), bạn phải từ chối một cách lịch sự và hướng dẫn họ tập trung vào câu hỏi hiện tại.

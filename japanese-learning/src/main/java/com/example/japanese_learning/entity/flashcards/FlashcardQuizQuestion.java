@@ -24,6 +24,18 @@ public class FlashcardQuizQuestion {
     @Column(columnDefinition = "TEXT")
     private String question;
 
+    @Column(name = "option_a")
+    private String optionA;
+
+    @Column(name = "option_b")
+    private String optionB;
+
+    @Column(name = "option_c")
+    private String optionC;
+
+    @Column(name = "option_d")
+    private String optionD;
+
     @Column(name = "correct_answer", columnDefinition = "TEXT")
     private String correctAnswer;
 
