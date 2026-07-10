@@ -1,90 +1,60 @@
-// lib/vocab/study_set_screen.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/flashcard_provider.dart';
+import '../../providers/app_setting_provider.dart';
+import '../../data/models/flashcard.dart';
 
-class StudySetScreen extends StatefulWidget {
+class StudySetScreen extends ConsumerStatefulWidget {
+  final int userId;
+  final int setId;
   final String setName;
   final int cardCount;
 
   const StudySetScreen({
     super.key,
+    required this.userId,
+    required this.setId,
     required this.setName,
     required this.cardCount,
   });
 
   @override
-  State<StudySetScreen> createState() => _StudySetScreenState();
+  ConsumerState<StudySetScreen> createState() => _StudySetScreenState();
 }
 
-class _StudySetScreenState extends State<StudySetScreen> with SingleTickerProviderStateMixin {
+class _StudySetScreenState extends ConsumerState<StudySetScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _currentIndex = 0;
   bool _showMeaning = false;
-  bool _isShuffled = false;
+  bool _isLoading = true;
 
-  // Dữ liệu mẫu cho các thẻ
-  final List<Map<String, String>> _sampleCards = [
-    {
-      'word': '食べる',
-      'reading': 'たべる',
-      'meaning': 'ăn',
-      'example': '毎日ご飯を食べます。',
-      'exampleMeaning': 'Mỗi ngày tôi ăn cơm.',
-    },
-    {
-      'word': '飲む',
-      'reading': 'のむ',
-      'meaning': 'uống',
-      'example': '水を飲みます。',
-      'exampleMeaning': 'Uống nước.',
-    },
-    {
-      'word': '行く',
-      'reading': 'いく',
-      'meaning': 'đi',
-      'example': '学校へ行きます。',
-      'exampleMeaning': 'Đi đến trường.',
-    },
-    {
-      'word': '見る',
-      'reading': 'みる',
-      'meaning': 'xem, nhìn',
-      'example': 'テレビを見ます。',
-      'exampleMeaning': 'Xem TV.',
-    },
-    {
-      'word': '聞く',
-      'reading': 'きく',
-      'meaning': 'nghe, hỏi',
-      'example': '音楽を聞きます。',
-      'exampleMeaning': 'Nghe nhạc.',
-    },
-    {
-      'word': '話す',
-      'reading': 'はなす',
-      'meaning': 'nói',
-      'example': '日本語を話します。',
-      'exampleMeaning': 'Nói tiếng Nhật.',
-    },
-  ];
-
-  late List<Map<String, String>> _displayCards;
+  List<Flashcard> _displayCards = [];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _displayCards = List.from(_sampleCards);
-    while (_displayCards.length < widget.cardCount) {
-      _displayCards.addAll(_sampleCards);
-    }
-    _displayCards = _displayCards.take(widget.cardCount).toList();
+    Future.microtask(() => _loadCards());
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadCards() async {
+    if (!mounted) return;
+    setState(() => _isLoading = true);
+    final provider = ref.read(flashcardProvider);
+    await provider.loadFlashcards(widget.setId);
+    if (mounted) {
+      setState(() {
+        _displayCards = List.from(provider.flashcards);
+        _isLoading = false;
+      });
+    }
   }
 
   void _nextCard() {
@@ -118,21 +88,17 @@ class _StudySetScreenState extends State<StudySetScreen> with SingleTickerProvid
       _displayCards.shuffle();
       _currentIndex = 0;
       _showMeaning = false;
-      _isShuffled = true;
     });
   }
 
-  void _resetOrder() {
-    setState(() {
-      _displayCards = List.from(_sampleCards);
-      while (_displayCards.length < widget.cardCount) {
-        _displayCards.addAll(_sampleCards);
-      }
-      _displayCards = _displayCards.take(widget.cardCount).toList();
-      _currentIndex = 0;
-      _showMeaning = false;
-      _isShuffled = false;
-    });
+  void _resetOrder() async {
+    await _loadCards();
+    if (mounted) {
+      setState(() {
+        _currentIndex = 0;
+        _showMeaning = false;
+      });
+    }
   }
 
   void _showCompletionDialog() {
@@ -141,7 +107,9 @@ class _StudySetScreenState extends State<StudySetScreen> with SingleTickerProvid
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('🎉 Hoàn thành!'),
-        content: Text('Bạn đã học xong bộ "${widget.setName}" với ${_displayCards.length} thẻ.'),
+        content: Text(
+          'Bạn đã học xong bộ "${widget.setName}" với ${_displayCards.length} thẻ.',
+        ),
         actions: [
           TextButton(
             onPressed: () {
@@ -154,7 +122,10 @@ class _StudySetScreenState extends State<StudySetScreen> with SingleTickerProvid
             child: const Text('Học lại'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pop(context);
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1E88E5),
             ),
@@ -167,18 +138,26 @@ class _StudySetScreenState extends State<StudySetScreen> with SingleTickerProvid
 
   void _startQuiz() {
     context.push(
-      '/flashcards/${widget.setName}/quiz',
+      '/flashcards/${widget.setId}/quiz',
       extra: {
+        'userId': widget.userId,
+        'setId': widget.setId,
         'setName': widget.setName,
-        'cards': _displayCards,
       },
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final settings = ref.watch(appSettingProvider);
+    final isDark = settings.isDarkMode;
+
+    final backgroundColor = isDark ? const Color(0xFF121212) : Colors.grey[50];
+    final appBarColor = isDark ? const Color(0xFF1E1E1E) : const Color(0xFF1E88E5);
+    final textColor = isDark ? Colors.white : Colors.black87;
+
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: backgroundColor,
       appBar: AppBar(
         title: Text(
           widget.setName,
@@ -190,7 +169,7 @@ class _StudySetScreenState extends State<StudySetScreen> with SingleTickerProvid
           overflow: TextOverflow.ellipsis,
         ),
         centerTitle: true,
-        backgroundColor: const Color(0xFF1E88E5),
+        backgroundColor: appBarColor,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
@@ -212,23 +191,23 @@ class _StudySetScreenState extends State<StudySetScreen> with SingleTickerProvid
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'shuffle',
                 child: Row(
                   children: [
-                    Icon(Icons.shuffle, size: 20),
-                    SizedBox(width: 8),
-                    Text('Xào bài'),
+                    Icon(Icons.shuffle, size: 20, color: isDark ? Colors.white70 : Colors.black87),
+                    const SizedBox(width: 8),
+                    Text('Xào bài', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87)),
                   ],
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'reset',
                 child: Row(
                   children: [
-                    Icon(Icons.restore, size: 20),
-                    SizedBox(width: 8),
-                    Text('Khôi phục thứ tự'),
+                    Icon(Icons.restore, size: 20, color: isDark ? Colors.white70 : Colors.black87),
+                    const SizedBox(width: 8),
+                    Text('Khôi phục thứ tự', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87)),
                   ],
                 ),
               ),
@@ -248,20 +227,50 @@ class _StudySetScreenState extends State<StudySetScreen> with SingleTickerProvid
           ],
         ),
       ),
-      body: TabBarView(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _displayCards.isEmpty
+          ? _buildEmptyState(isDark)
+          : TabBarView(
         controller: _tabController,
         children: [
-          _buildStudyTab(),
-          _buildWordListTab(),
+          _buildStudyTab(isDark),
+          _buildWordListTab(isDark),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(bool isDark) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.credit_card_off, size: 64, color: isDark ? Colors.grey[700] : Colors.grey[400]),
+          const SizedBox(height: 16),
+          Text(
+            'Không có thẻ nào trong bộ này',
+            style: TextStyle(fontSize: 16, color: isDark ? Colors.white60 : Colors.grey[600]),
+          ),
+          const SizedBox(height: 8),
+          ElevatedButton(
+            onPressed: _loadCards,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1E88E5),
+            ),
+            child: const Text('Tải lại'),
+          ),
         ],
       ),
     );
   }
 
   // Tab 1: Học thẻ
-  Widget _buildStudyTab() {
+  Widget _buildStudyTab(bool isDark) {
     final currentCard = _displayCards[_currentIndex];
     final progress = ((_currentIndex + 1) / _displayCards.length * 100).round();
+    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF333333);
 
     return Column(
       children: [
@@ -297,7 +306,7 @@ class _StudySetScreenState extends State<StudySetScreen> with SingleTickerProvid
                 borderRadius: BorderRadius.circular(10),
                 child: LinearProgressIndicator(
                   value: progress / 100,
-                  backgroundColor: Colors.grey[200],
+                  backgroundColor: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.grey[200],
                   valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF1E88E5)),
                   minHeight: 8,
                 ),
@@ -316,11 +325,11 @@ class _StudySetScreenState extends State<StudySetScreen> with SingleTickerProvid
                 key: ValueKey(_showMeaning),
                 margin: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: cardColor,
                   borderRadius: BorderRadius.circular(28),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.grey.withOpacity(0.15),
+                      color: isDark ? Colors.black.withValues(alpha: 0.3) : Colors.grey.withValues(alpha: 0.15),
                       blurRadius: 20,
                       offset: const Offset(0, 5),
                     ),
@@ -339,7 +348,7 @@ class _StudySetScreenState extends State<StudySetScreen> with SingleTickerProvid
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF1E88E5).withOpacity(0.1),
+                                    color: const Color(0xFF1E88E5).withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: const Text(
@@ -353,30 +362,19 @@ class _StudySetScreenState extends State<StudySetScreen> with SingleTickerProvid
                                 ),
                                 const SizedBox(height: 24),
                                 Text(
-                                  currentCard['word']!,
-                                  style: const TextStyle(
+                                  currentCard.front,
+                                  style: TextStyle(
                                     fontSize: 48,
                                     fontWeight: FontWeight.bold,
-                                    color: Color(0xFF333333),
+                                    color: textColor,
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
-                                if (currentCard['reading'] != null && currentCard['reading']!.isNotEmpty) ...[
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    currentCard['reading']!,
-                                    style: TextStyle(
-                                      fontSize: 20,
-                                      color: Colors.grey[500],
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
                               ] else ...[
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                   decoration: BoxDecoration(
-                                    color: Colors.green.withOpacity(0.1),
+                                    color: Colors.green.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: const Text(
@@ -390,26 +388,26 @@ class _StudySetScreenState extends State<StudySetScreen> with SingleTickerProvid
                                 ),
                                 const SizedBox(height: 24),
                                 Text(
-                                  currentCard['meaning']!,
-                                  style: const TextStyle(
+                                  currentCard.back,
+                                  style: TextStyle(
                                     fontSize: 32,
                                     fontWeight: FontWeight.w600,
-                                    color: Color(0xFF333333),
+                                    color: textColor,
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
-                                if (currentCard['example'] != null && currentCard['example']!.isNotEmpty) ...[
+                                if (currentCard.note.isNotEmpty) ...[
                                   const SizedBox(height: 32),
-                                  const Divider(),
+                                  Divider(color: isDark ? Colors.white10 : Colors.grey[300]),
                                   const SizedBox(height: 16),
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                     decoration: BoxDecoration(
-                                      color: Colors.orange.withOpacity(0.1),
+                                      color: Colors.orange.withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: const Text(
-                                      'Ví dụ',
+                                      'Ghi chú',
                                       style: TextStyle(
                                         color: Colors.orange,
                                         fontSize: 12,
@@ -419,25 +417,13 @@ class _StudySetScreenState extends State<StudySetScreen> with SingleTickerProvid
                                   ),
                                   const SizedBox(height: 12),
                                   Text(
-                                    currentCard['example']!,
-                                    style: const TextStyle(
+                                    currentCard.note,
+                                    style: TextStyle(
                                       fontSize: 16,
-                                      color: Color(0xFF555555),
+                                      color: isDark ? Colors.white70 : const Color(0xFF555555),
                                     ),
                                     textAlign: TextAlign.center,
                                   ),
-                                  if (currentCard['exampleMeaning'] != null && currentCard['exampleMeaning']!.isNotEmpty) ...[
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      currentCard['exampleMeaning']!,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.grey[500],
-                                        fontStyle: FontStyle.italic,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ],
                                 ],
                               ],
                             ],
@@ -450,7 +436,7 @@ class _StudySetScreenState extends State<StudySetScreen> with SingleTickerProvid
                       child: Text(
                         _showMeaning ? '👆 Chạm để xem từ vựng' : '👆 Chạm để xem nghĩa',
                         style: TextStyle(
-                          color: Colors.grey[400],
+                          color: isDark ? Colors.white30 : Colors.grey[400],
                           fontSize: 13,
                         ),
                       ),
@@ -512,7 +498,10 @@ class _StudySetScreenState extends State<StudySetScreen> with SingleTickerProvid
   }
 
   // Tab 2: Danh sách từ vựng
-  Widget _buildWordListTab() {
+  Widget _buildWordListTab(bool isDark) {
+    final textColor = isDark ? Colors.white : const Color(0xFF333333);
+    final subTextColor = isDark ? Colors.white60 : Colors.grey[600];
+
     return Column(
       children: [
         // Nút tạo bài kiểm tra
@@ -545,7 +534,7 @@ class _StudySetScreenState extends State<StudySetScreen> with SingleTickerProvid
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E88E5).withOpacity(0.1),
+                  color: const Color(0xFF1E88E5).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -561,13 +550,13 @@ class _StudySetScreenState extends State<StudySetScreen> with SingleTickerProvid
               TextButton.icon(
                 onPressed: () {
                   setState(() {
-                    _displayCards.sort((a, b) => a['word']!.compareTo(b['word']!));
+                    _displayCards.sort((a, b) => a.front.compareTo(b.front));
                   });
                 },
                 icon: const Icon(Icons.sort_by_alpha, size: 18),
                 label: const Text('Sắp xếp'),
                 style: TextButton.styleFrom(
-                  foregroundColor: Colors.grey[600],
+                  foregroundColor: subTextColor,
                 ),
               ),
             ],
@@ -586,11 +575,11 @@ class _StudySetScreenState extends State<StudySetScreen> with SingleTickerProvid
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.grey.withOpacity(0.05),
+                      color: isDark ? Colors.black.withValues(alpha: 0.2) : Colors.grey.withValues(alpha: 0.05),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),
@@ -616,7 +605,7 @@ class _StudySetScreenState extends State<StudySetScreen> with SingleTickerProvid
                             width: 40,
                             height: 40,
                             decoration: BoxDecoration(
-                              color: const Color(0xFF1E88E5).withOpacity(0.1),
+                              color: const Color(0xFF1E88E5).withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Center(
@@ -632,34 +621,38 @@ class _StudySetScreenState extends State<StudySetScreen> with SingleTickerProvid
                           ),
                           const SizedBox(width: 16),
                           Expanded(
+                            flex: 2,
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  card['word']!,
-                                  style: const TextStyle(
+                                  card.front,
+                                  style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
-                                    color: Color(0xFF333333),
+                                    color: textColor,
                                   ),
                                 ),
-                                if (card['reading'] != null && card['reading']!.isNotEmpty)
+                                if (card.note.isNotEmpty)
                                   Text(
-                                    card['reading']!,
+                                    card.note,
                                     style: TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.grey[500],
+                                      fontSize: 12,
+                                      color: isDark ? Colors.white30 : Colors.grey[400],
                                     ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                               ],
                             ),
                           ),
                           Expanded(
+                            flex: 1,
                             child: Text(
-                              card['meaning']!,
+                              card.back,
                               style: TextStyle(
                                 fontSize: 16,
-                                color: Colors.grey[700],
+                                color: isDark ? Colors.white70 : Colors.grey[700],
                               ),
                               textAlign: TextAlign.right,
                             ),
@@ -667,7 +660,7 @@ class _StudySetScreenState extends State<StudySetScreen> with SingleTickerProvid
                           const SizedBox(width: 8),
                           Icon(
                             Icons.chevron_right,
-                            color: Colors.grey[400],
+                            color: isDark ? Colors.white24 : Colors.grey[400],
                             size: 20,
                           ),
                         ],

@@ -13,6 +13,8 @@ public class FlashcardQuizHistoryResponse {
 
     private Long historyId;
 
+    private Long setId;
+
     private String setName;
 
     private Integer totalQuestion;

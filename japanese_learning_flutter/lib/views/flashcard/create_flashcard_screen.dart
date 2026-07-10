@@ -1,24 +1,40 @@
-// lib/vocab/create_set_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/flashcard_provider.dart';
+import '../../providers/app_setting_provider.dart';
 
-class CreateSetScreen extends StatefulWidget {
-  const CreateSetScreen({super.key});
+class CreateSetScreen extends ConsumerStatefulWidget {
+  final int userId;
+  final int? setId;
+  final String? setName;
+  final String? description;
+  final bool? isPublic;
+
+  const CreateSetScreen({
+    super.key,
+    required this.userId,
+    this.setId,
+    this.setName,
+    this.description,
+    this.isPublic,
+  });
 
   @override
-  State<CreateSetScreen> createState() => _CreateSetScreenState();
+  ConsumerState<CreateSetScreen> createState() => _CreateSetScreenState();
 }
 
-class _CreateSetScreenState extends State<CreateSetScreen> {
+class _CreateSetScreenState extends ConsumerState<CreateSetScreen> {
   // Thông tin bộ thẻ
   final TextEditingController _setNameController = TextEditingController();
   final TextEditingController _setDescriptionController = TextEditingController();
-  bool _isPublic = true;
+  late bool _isPublic;
 
   // Chế độ nhập thẻ: 'single' hoặc 'bulk'
   String _inputMode = 'single';
 
   // Dữ liệu cho chế độ nhập từng thẻ
   List<Map<String, dynamic>> _cards = [];
+  List<int> _deletedCardIds = [];
 
   // Dữ liệu cho chế độ nhập bulk
   final TextEditingController _bulkController = TextEditingController();
@@ -35,11 +51,51 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
     {'label': 'Dấu |', 'value': '|', 'icon': '|'},
   ];
 
+  bool _isLoading = false;
+
   @override
   void initState() {
     super.initState();
-    _addNewCard();
+    _isPublic = widget.isPublic ?? true;
+    _setNameController.text = widget.setName ?? '';
+    _setDescriptionController.text = widget.description ?? '';
+
+    if (widget.setId != null) {
+      Future.microtask(() => _loadExistingCards());
+    } else {
+      _addNewCard();
+    }
     _delimiterController.addListener(_onDelimiterChanged);
+  }
+
+  Future<void> _loadExistingCards() async {
+    setState(() => _isLoading = true);
+    try {
+      final provider = ref.read(flashcardProvider);
+      final cards = await provider.loadFlashcards(widget.setId!);
+      
+      if (mounted) {
+        setState(() {
+          _cards = cards.map((c) => {
+            'dbId': c.id,
+            'id': c.id.toString(),
+            'wordController': TextEditingController(text: c.front),
+            'meaningController': TextEditingController(text: c.back),
+            'exampleController': TextEditingController(text: c.note),
+          }).toList();
+          
+          if (_cards.isEmpty) {
+            _addNewCard();
+          }
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showSnackBar('Lỗi tải thẻ: $e', Colors.red);
+      }
+    }
   }
 
   @override
@@ -79,18 +135,25 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
 
   void _removeCard(String id) {
     if (_cards.length == 1) {
-      _showSnackBar('Bo phai co it nhat mot the', Colors.orange);
+      _showSnackBar('Bộ phải có ít nhất một thẻ', Colors.orange);
       return;
     }
 
-    final cardToRemove = _cards.firstWhere((card) => card['id'] == id);
-    cardToRemove['wordController']?.dispose();
-    cardToRemove['meaningController']?.dispose();
-    cardToRemove['exampleController']?.dispose();
+    final cardIndex = _cards.indexWhere((card) => card['id'] == id);
+    if (cardIndex != -1) {
+      final card = _cards[cardIndex];
+      if (card['dbId'] != null) {
+        _deletedCardIds.add(card['dbId']);
+      }
+      
+      card['wordController']?.dispose();
+      card['meaningController']?.dispose();
+      card['exampleController']?.dispose();
 
-    setState(() {
-      _cards.removeWhere((card) => card['id'] == id);
-    });
+      setState(() {
+        _cards.removeAt(cardIndex);
+      });
+    }
   }
 
   // ========== CHE DO NHAP NHIEU THE ==========
@@ -104,7 +167,7 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
   void _parseBulkText() {
     final text = _bulkController.text.trim();
     if (text.isEmpty) {
-      _showSnackBar('Vui long nhap du lieu', Colors.orange);
+      _showSnackBar('Vui lòng nhập dữ liệu', Colors.orange);
       return;
     }
 
@@ -113,7 +176,7 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
       delimiter = '\t';
     }
 
-    // Xu ly ky tu dac biet trong regex
+    // Xử lý ký tự đặc biệt trong regex
     String regexDelimiter;
     if (delimiter == '\t') {
       regexDelimiter = '\t';
@@ -162,12 +225,15 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
     }
 
     if (parsedCards.isEmpty) {
-      _showSnackBar('Khong tim thay du lieu hop le. Kiem tra lai ky tu phan cach!', Colors.red);
+      _showSnackBar('Không tìm thấy dữ liệu hợp lệ. Kiểm tra lại ký tự phân cách!', Colors.red);
       return;
     }
 
-    // Xoa cac card cu va them card moi tu bulk
+    // Ghi nhận các card cũ có dbId để xóa sau này nếu người dùng muốn thay thế hoàn toàn
     for (var card in _cards) {
+      if (card['dbId'] != null) {
+        _deletedCardIds.add(card['dbId']);
+      }
       card['wordController']?.dispose();
       card['meaningController']?.dispose();
       card['exampleController']?.dispose();
@@ -177,7 +243,7 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
       _cards.clear();
       for (var card in parsedCards) {
         _cards.add({
-          'id': DateTime.now().millisecondsSinceEpoch.toString(),
+          'id': DateTime.now().millisecondsSinceEpoch.toString() + parsedCards.indexOf(card).toString(),
           'wordController': TextEditingController(text: card['word']),
           'meaningController': TextEditingController(text: card['meaning']),
           'exampleController': TextEditingController(text: card['example']),
@@ -185,15 +251,15 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
       }
     });
 
-    _showSnackBar('Da them ${parsedCards.length} the tu vung!', Colors.green);
+    _showSnackBar('Đã tạo ${parsedCards.length} thẻ mới. Hãy nhấn Cập nhật để lưu!', Colors.green);
 
-    // Tao preview
+    // Tạo preview
     String preview = '';
     for (var i = 0; i < parsedCards.length && i < 5; i++) {
       preview += '${i + 1}. ${parsedCards[i]['word']} -> ${parsedCards[i]['meaning']}\n';
     }
     if (parsedCards.length > 5) {
-      preview += '... va ${parsedCards.length - 5} the khac';
+      preview += '... và ${parsedCards.length - 5} thẻ khác';
     }
     setState(() {
       _bulkPreview = preview;
@@ -207,10 +273,10 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
     });
   }
 
-  // ========== TAO BO THE ==========
-  void _createSet() {
+  // ========== TAO/SUA BO THE ==========
+  Future<void> _submitSet() async {
     if (_setNameController.text.trim().isEmpty) {
-      _showSnackBar('Vui long nhap ten bo', Colors.red);
+      _showSnackBar('Vui lòng nhập tên bộ', Colors.red);
       return;
     }
 
@@ -219,43 +285,103 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
         card['meaningController'].text.trim().isEmpty);
 
     if (invalidCards.isNotEmpty) {
-      _showSnackBar('Tat ca the phai co tu va nghia', Colors.red);
+      _showSnackBar('Tất cả thẻ phải có từ và nghĩa', Colors.red);
       return;
     }
 
-    // Lay du lieu cac the
-    final List<Map<String, String>> cardData = [];
-    for (var card in _cards) {
-      cardData.add({
-        'word': card['wordController'].text.trim(),
-        'meaning': card['meaningController'].text.trim(),
-        'example': card['exampleController'].text.trim(),
-      });
+    final provider = ref.read(flashcardProvider);
+    setState(() => _isLoading = true);
+
+    bool success = false;
+    int? currentSetId = widget.setId;
+
+    try {
+      if (currentSetId == null) {
+        // TAO BO THE MOI
+        final newSet = await provider.createSet(
+          userId: widget.userId,
+          name: _setNameController.text.trim(),
+          description: _setDescriptionController.text.trim(),
+          isPublic: _isPublic,
+        );
+
+        if (newSet != null) {
+          currentSetId = newSet.id;
+          // Tạo các thẻ
+          for (var card in _cards) {
+            await provider.createFlashcard(
+              userId: widget.userId,
+              setId: currentSetId!,
+              front: card['wordController'].text.trim(),
+              back: card['meaningController'].text.trim(),
+              note: card['exampleController'].text.trim().isEmpty ? null : card['exampleController'].text.trim(),
+            );
+          }
+          success = true;
+        }
+      } else {
+        // CAP NHAT BO THE DA CO
+        success = await provider.updateSet(
+          setId: currentSetId,
+          userId: widget.userId,
+          name: _setNameController.text.trim(),
+          description: _setDescriptionController.text.trim(),
+          isPublic: _isPublic,
+        );
+
+        if (success) {
+          // 1. Xóa các thẻ đã bị gỡ
+          for (var id in _deletedCardIds) {
+            await provider.deleteFlashcard(flashcardId: id, userId: widget.userId);
+          }
+
+          // 2. Cập nhật thẻ cũ hoặc tạo thẻ mới
+          for (var card in _cards) {
+            if (card['dbId'] != null) {
+              // Cập nhật thẻ đã có
+              await provider.updateFlashcard(
+                flashcardId: card['dbId'],
+                userId: widget.userId,
+                front: card['wordController'].text.trim(),
+                back: card['meaningController'].text.trim(),
+                note: card['exampleController'].text.trim().isEmpty ? null : card['exampleController'].text.trim(),
+              );
+            } else {
+              // Tạo thẻ mới được thêm vào lúc sửa
+              await provider.createFlashcard(
+                userId: widget.userId,
+                setId: currentSetId,
+                front: card['wordController'].text.trim(),
+                back: card['meaningController'].text.trim(),
+                note: card['exampleController'].text.trim().isEmpty ? null : card['exampleController'].text.trim(),
+              );
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Submit error: $e");
+      success = false;
     }
 
-    debugPrint('=== TAO BO THE ===');
-    debugPrint('Ten bo: ${_setNameController.text}');
-    debugPrint('Mo ta: ${_setDescriptionController.text}');
-    debugPrint('Che do: ${_isPublic ? "Public" : "Private"}');
-    debugPrint('So luong the: ${cardData.length}');
+    if (mounted) {
+      setState(() => _isLoading = false);
 
-    _showSnackBar('Da tao bo "${_setNameController.text}" thanh cong!', Colors.green);
-
-    // Reset form
-    _setNameController.clear();
-    _setDescriptionController.clear();
-    setState(() {
-      _isPublic = true;
-      for (var card in _cards) {
-        card['wordController']?.dispose();
-        card['meaningController']?.dispose();
-        card['exampleController']?.dispose();
+      if (success) {
+        _showSnackBar(
+          widget.setId == null
+              ? 'Đã tạo bộ "${_setNameController.text}" thành công!'
+              : 'Đã cập nhật bộ "${_setNameController.text}" thành công!',
+          Colors.green,
+        );
+        Navigator.pop(context, true);
+      } else {
+        _showSnackBar(
+          provider.error ?? 'Có lỗi xảy ra, vui lòng thử lại',
+          Colors.red,
+        );
       }
-      _cards = [];
-      _addNewCard();
-      _bulkController.clear();
-      _bulkPreview = '';
-    });
+    }
   }
 
   void _showSnackBar(String message, Color color) {
@@ -270,37 +396,45 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final settings = ref.watch(appSettingProvider);
+    final isDark = settings.isDarkMode;
+
+    final backgroundColor = isDark ? const Color(0xFF121212) : Colors.grey[50];
+    final appBarColor = isDark ? const Color(0xFF1E1E1E) : const Color(0xFF1E88E5);
+
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        title: const Text(
-          'Tao bo the',
-          style: TextStyle(
+        title: Text(
+          widget.setId == null ? 'Tạo bộ thẻ' : 'Chỉnh sửa bộ thẻ',
+          style: const TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
         ),
         centerTitle: true,
-        backgroundColor: const Color(0xFF1E88E5),
+        backgroundColor: appBarColor,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: SingleChildScrollView(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(),
             const SizedBox(height: 24),
-            _buildSetInfoForm(),
+            _buildSetInfoForm(isDark),
             const SizedBox(height: 24),
-            _buildCardInputSection(),
+            _buildCardInputSection(isDark),
             const SizedBox(height: 24),
-            _buildCreateButton(),
+            _buildSubmitButton(),
             const SizedBox(height: 30),
           ],
         ),
@@ -319,48 +453,52 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
         ),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Tao bo the moi',
-            style: TextStyle(
+            widget.setId == null ? 'Tạo bộ thẻ mới' : 'Chỉnh sửa bộ thẻ',
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
-            'Tao bo the de hoc tu vung hieu qua hon',
-            style: TextStyle(color: Colors.white70, fontSize: 14),
+            widget.setId == null
+                ? 'Tạo bộ thẻ để học từ vựng hiệu quả hơn'
+                : 'Cập nhật thông tin bộ thẻ của bạn',
+            style: const TextStyle(color: Colors.white70, fontSize: 14),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSetInfoForm() {
+  Widget _buildSetInfoForm(bool isDark) {
+    final textColor = isDark ? Colors.white : Colors.black87;
+
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: _cardDecoration(),
+      decoration: _cardDecoration(isDark),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Thong tin bo the',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          Text(
+            'Thông tin bộ thẻ',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
           ),
           const SizedBox(height: 16),
 
-          _buildLabel('Ten bo *'),
+          _buildLabel('Tên bộ *', isDark),
           const SizedBox(height: 8),
-          _buildTextField(_setNameController, 'VD: Tu vung JLPT N5'),
+          _buildTextField(_setNameController, 'VD: Từ vựng JLPT N5', isDark),
           const SizedBox(height: 16),
 
-          _buildLabel('Mo ta bo'),
+          _buildLabel('Mô tả bộ', isDark),
           const SizedBox(height: 8),
-          _buildTextField(_setDescriptionController, 'Mo ta ngan gon ve bo the',
+          _buildTextField(_setDescriptionController, 'Mô tả ngắn gọn về bộ thẻ', isDark,
               maxLines: 2),
           const SizedBox(height: 16),
 
@@ -377,10 +515,11 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    _isPublic ? 'Cong khai (Public)' : 'Rieng tu (Private)',
-                    style: const TextStyle(
+                    _isPublic ? 'Công khai (Public)' : 'Riêng tư (Private)',
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w500,
+                      color: textColor,
                     ),
                   ),
                 ],
@@ -388,7 +527,7 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
               Switch(
                 value: _isPublic,
                 onChanged: (value) => setState(() => _isPublic = value),
-                activeColor: const Color(0xFF1E88E5),
+                activeThumbColor: const Color(0xFF1E88E5),
               ),
             ],
           ),
@@ -397,37 +536,39 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
     );
   }
 
-  Widget _buildCardInputSection() {
+  Widget _buildCardInputSection(bool isDark) {
+    final textColor = isDark ? Colors.white : Colors.black87;
+
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: _cardDecoration(),
+      decoration: _cardDecoration(isDark),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Them the vao bo',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          Text(
+            'Thêm thẻ vào bộ',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
           ),
           const SizedBox(height: 12),
 
           // Tab chọn chế độ nhập
           Row(
             children: [
-              _buildInputModeButton('single', 'Theo tung the'),
+              _buildInputModeButton('single', 'Theo từng thẻ', isDark),
               const SizedBox(width: 12),
-              _buildInputModeButton('bulk', 'Nhap nhieu the 1 luc'),
+              _buildInputModeButton('bulk', 'Nhập nhiều thẻ 1 lúc', isDark),
             ],
           ),
           const SizedBox(height: 20),
 
           // Nội dung theo chế độ
-          _inputMode == 'single' ? _buildSingleCardInput() : _buildBulkCardInput(),
+          _inputMode == 'single' ? _buildSingleCardInput(isDark) : _buildBulkCardInput(isDark),
         ],
       ),
     );
   }
 
-  Widget _buildInputModeButton(String mode, String label) {
+  Widget _buildInputModeButton(String mode, String label, bool isDark) {
     final isActive = _inputMode == mode;
     return Expanded(
       child: GestureDetector(
@@ -435,17 +576,17 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: isActive ? const Color(0xFF1E88E5) : Colors.grey[100],
+            color: isActive ? const Color(0xFF1E88E5) : (isDark ? Colors.white10 : Colors.grey[100]),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: isActive ? const Color(0xFF1E88E5) : Colors.grey[300]!,
+              color: isActive ? const Color(0xFF1E88E5) : (isDark ? Colors.white10 : Colors.grey[300]!),
             ),
           ),
           child: Center(
             child: Text(
               label,
               style: TextStyle(
-                color: isActive ? Colors.white : Colors.grey[700],
+                color: isActive ? Colors.white : (isDark ? Colors.white60 : Colors.grey[700]),
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
                 fontSize: 13,
               ),
@@ -457,21 +598,23 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
   }
 
   // ========== CHE DO NHAP DUNG THE ==========
-  Widget _buildSingleCardInput() {
+  Widget _buildSingleCardInput(bool isDark) {
+    final textColor = isDark ? Colors.white : Colors.black87;
+
     return Column(
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Danh sach the (${_cards.length})',
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              'Danh sách thẻ (${_cards.length})',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: textColor),
             ),
             TextButton.icon(
               onPressed: _addNewCard,
               icon: const Icon(Icons.add_circle, color: Color(0xFF1E88E5), size: 20),
               label: const Text(
-                'Them the',
+                'Thêm thẻ',
                 style: TextStyle(color: Color(0xFF1E88E5), fontSize: 13),
               ),
             ),
@@ -489,9 +632,9 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
               margin: const EdgeInsets.only(bottom: 16),
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.grey[50],
+                color: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.grey[50],
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[200]!),
+                border: Border.all(color: isDark ? Colors.white10 : Colors.grey[200]!),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -500,7 +643,7 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'The ${index + 1}',
+                        'Thẻ ${index + 1}',
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
@@ -517,19 +660,19 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  _buildLabel('Tu vung *', small: true),
+                  _buildLabel('Từ vựng *', isDark, small: true),
                   const SizedBox(height: 4),
-                  _buildSmallTextField(card['wordController'], 'Nhap tu tieng Nhat'),
+                  _buildSmallTextField(card['wordController'], 'Nhập từ tiếng Nhật', isDark),
                   const SizedBox(height: 10),
 
-                  _buildLabel('Nghia *', small: true),
+                  _buildLabel('Nghĩa *', isDark, small: true),
                   const SizedBox(height: 4),
-                  _buildSmallTextField(card['meaningController'], 'Nhap nghia'),
+                  _buildSmallTextField(card['meaningController'], 'Nhập nghĩa', isDark),
                   const SizedBox(height: 10),
 
-                  _buildLabel('Vi du', small: true),
+                  _buildLabel('Ví dụ', isDark, small: true),
                   const SizedBox(height: 4),
-                  _buildSmallTextField(card['exampleController'], 'Nhap cau vi du', maxLines: 2),
+                  _buildSmallTextField(card['exampleController'], 'Nhập câu ví dụ', isDark, maxLines: 2),
                 ],
               ),
             );
@@ -540,14 +683,16 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
   }
 
   // ========== CHE DO NHAP NHIEU THE ==========
-  Widget _buildBulkCardInput() {
+  Widget _buildBulkCardInput(bool isDark) {
+    final textColor = isDark ? Colors.white70 : Colors.black87;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.blue[50],
+            color: isDark ? const Color(0xFF1E88E5).withValues(alpha: 0.1) : Colors.blue[50],
             borderRadius: BorderRadius.circular(10),
           ),
           child: const Row(
@@ -556,7 +701,7 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
               SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Moi dong: tu vung + nghia + vi du (cach nhau bang ky tu phan cach)',
+                  'Mỗi dòng: từ vựng + nghĩa + ví dụ (cách nhau bằng ký tự phân cách)',
                   style: TextStyle(fontSize: 12, color: Color(0xFF1E88E5)),
                 ),
               ),
@@ -566,7 +711,7 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
         const SizedBox(height: 16),
 
         // Ô nhập ký tự phân cách
-        const Text('Ky tu phan cach:', style: TextStyle(fontWeight: FontWeight.w500)),
+        Text('Ký tự phân cách:', style: TextStyle(fontWeight: FontWeight.w500, color: textColor)),
         const SizedBox(height: 8),
 
         // Các nút chọn nhanh
@@ -583,11 +728,11 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
                   _setQuickDelimiter(delimiter['value']);
                 }
               },
-              backgroundColor: Colors.grey[100],
-              selectedColor: const Color(0xFF1E88E5).withOpacity(0.2),
+              backgroundColor: isDark ? Colors.white10 : Colors.grey[100],
+              selectedColor: const Color(0xFF1E88E5).withValues(alpha: 0.2),
               checkmarkColor: const Color(0xFF1E88E5),
               labelStyle: TextStyle(
-                color: isSelected ? const Color(0xFF1E88E5) : Colors.grey[700],
+                color: isSelected ? const Color(0xFF1E88E5) : (isDark ? Colors.white70 : Colors.grey[700]),
                 fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
               ),
             );
@@ -603,15 +748,16 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
               child: TextField(
                 controller: _delimiterController,
                 maxLength: 3,
+                style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                 decoration: InputDecoration(
-                  hintText: 'Nhap ky tu phan cach (VD: , ; | /)',
-                  hintStyle: TextStyle(color: Colors.grey[400], fontSize: 12),
+                  hintText: 'Nhập ký tự phân cách (VD: , ; | /)',
+                  hintStyle: TextStyle(color: isDark ? Colors.white30 : Colors.grey[400], fontSize: 12),
                   counterText: '',
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: isDark ? Colors.white10 : Colors.white,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
+                    borderSide: BorderSide(color: isDark ? Colors.white10 : Colors.grey[300]!),
                   ),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
@@ -621,12 +767,12 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.grey[200],
+                color: isDark ? Colors.white10 : Colors.grey[200],
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                _selectedDelimiter == '\t' ? 'Hien tai: Tab' : 'Hien tai: $_selectedDelimiter',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                _selectedDelimiter == '\t' ? 'Hiện tại: Tab' : 'Hiện tại: $_selectedDelimiter',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: isDark ? Colors.white70 : Colors.black87),
               ),
             ),
           ],
@@ -634,20 +780,21 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
 
         const SizedBox(height: 16),
 
-        const Text('Du lieu the:', style: TextStyle(fontWeight: FontWeight.w500)),
+        Text('Dữ liệu thẻ:', style: TextStyle(fontWeight: FontWeight.w500, color: textColor)),
         const SizedBox(height: 8),
 
         TextField(
           controller: _bulkController,
           maxLines: 8,
+          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
           decoration: InputDecoration(
             hintText: _getExampleText(),
-            hintStyle: TextStyle(color: Colors.grey[400], fontSize: 12),
+            hintStyle: TextStyle(color: isDark ? Colors.white24 : Colors.grey[400], fontSize: 12),
             filled: true,
-            fillColor: Colors.grey[50],
+            fillColor: isDark ? Colors.white10 : Colors.grey[50],
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: Colors.grey[300]!),
+              borderSide: BorderSide(color: isDark ? Colors.white10 : Colors.grey[300]!),
             ),
             contentPadding: const EdgeInsets.all(12),
           ),
@@ -664,17 +811,18 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
-                child: const Text('Tao the tu du lieu'),
+                child: const Text('Tạo thẻ từ dữ liệu'),
               ),
             ),
             const SizedBox(width: 8),
             OutlinedButton(
               onPressed: _clearBulk,
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.grey[600],
+                foregroundColor: isDark ? Colors.white70 : Colors.grey[600],
+                side: BorderSide(color: isDark ? Colors.white24 : Colors.grey[400]!),
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
-              child: const Text('Xoa'),
+              child: const Text('Xóa'),
             ),
           ],
         ),
@@ -684,9 +832,9 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.green[50],
+              color: isDark ? Colors.green.withValues(alpha: 0.1) : Colors.green[50],
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.green[200]!),
+              border: Border.all(color: isDark ? Colors.green.withValues(alpha: 0.2) : Colors.green[200]!),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -696,7 +844,7 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
                     Icon(Icons.check_circle, color: Colors.green, size: 18),
                     SizedBox(width: 8),
                     Text(
-                      'Da tao the thanh cong!',
+                      'Đã tạo thẻ thành công!',
                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.green),
                     ),
                   ],
@@ -704,7 +852,7 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
                 const SizedBox(height: 8),
                 Text(
                   _bulkPreview,
-                  style: const TextStyle(fontSize: 12),
+                  style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.black87),
                 ),
               ],
             ),
@@ -724,16 +872,16 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
     } else if (_selectedDelimiter == ' ') {
       return '食べる ăn 毎日ご飯を食べる\n飲む uống 水を飲む\n行く đi 学校へ行く';
     } else {
-      return '食べる${_selectedDelimiter}ăn${_selectedDelimiter}毎日ご飯を食べる\n飲む${_selectedDelimiter}uống${_selectedDelimiter}水を飲む\n行く${_selectedDelimiter}đi${_selectedDelimiter}学校へ行く';
+      return '食べる${_selectedDelimiter}ăn${_selectedDelimiter}毎日ご飯 को食べる\n飲む${_selectedDelimiter}uống${_selectedDelimiter}水を飲む\n行く${_selectedDelimiter}đi${_selectedDelimiter}学校へ行く';
     }
   }
 
-  // ========== BUTTON TAO BO ==========
-  Widget _buildCreateButton() {
+  // ========== BUTTON TAO/SUA BO ==========
+  Widget _buildSubmitButton() {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: _createSet,
+        onPressed: _isLoading ? null : _submitSet,
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF1E88E5),
           foregroundColor: Colors.white,
@@ -743,43 +891,53 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
           ),
           elevation: 2,
         ),
-        child: const Text(
-          'Tao bo the',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        child: _isLoading
+            ? const SizedBox(
+          height: 20,
+          width: 20,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: Colors.white,
+          ),
+        )
+            : Text(
+          widget.setId == null ? 'Tạo bộ thẻ' : 'Cập nhật bộ thẻ',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
       ),
     );
   }
 
   // ========== HELPER WIDGETS ==========
-  Widget _buildLabel(String text, {bool small = false}) {
+  Widget _buildLabel(String text, bool isDark, {bool small = false}) {
     return Text(
       text,
       style: TextStyle(
         fontSize: small ? 12 : 14,
         fontWeight: FontWeight.w500,
-        color: Colors.grey[700],
+        color: isDark ? Colors.white60 : Colors.grey[700],
       ),
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String hint,
+  Widget _buildTextField(TextEditingController controller, String hint, bool isDark,
       {int maxLines = 1}) {
     return TextField(
       controller: controller,
       maxLines: maxLines,
+      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey[400]),
+        hintStyle: TextStyle(color: isDark ? Colors.white24 : Colors.grey[400]),
         filled: true,
-        fillColor: Colors.grey[50],
+        fillColor: isDark ? Colors.white10 : Colors.grey[50],
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.grey[300]!),
+          borderSide: BorderSide(color: isDark ? Colors.white10 : Colors.grey[300]!),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.grey[300]!),
+          borderSide: BorderSide(color: isDark ? Colors.white10 : Colors.grey[300]!),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
@@ -790,23 +948,24 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
     );
   }
 
-  Widget _buildSmallTextField(TextEditingController controller, String hint,
+  Widget _buildSmallTextField(TextEditingController controller, String hint, bool isDark,
       {int maxLines = 1}) {
     return TextField(
       controller: controller,
       maxLines: maxLines,
+      style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 14),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+        hintStyle: TextStyle(color: isDark ? Colors.white24 : Colors.grey[400], fontSize: 13),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey[300]!),
+          borderSide: BorderSide(color: isDark ? Colors.white10 : Colors.grey[300]!),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey[300]!),
+          borderSide: BorderSide(color: isDark ? Colors.white10 : Colors.grey[300]!),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -814,17 +973,16 @@ class _CreateSetScreenState extends State<CreateSetScreen> {
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       ),
-      style: const TextStyle(fontSize: 14),
     );
   }
 
-  BoxDecoration _cardDecoration() {
+  BoxDecoration _cardDecoration(bool isDark) {
     return BoxDecoration(
-      color: Colors.white,
+      color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
       borderRadius: BorderRadius.circular(16),
       boxShadow: [
         BoxShadow(
-          color: Colors.grey.withOpacity(0.1),
+          color: isDark ? Colors.black.withValues(alpha: 0.3) : Colors.grey.withValues(alpha: 0.1),
           blurRadius: 8,
           offset: const Offset(0, 2),
         ),

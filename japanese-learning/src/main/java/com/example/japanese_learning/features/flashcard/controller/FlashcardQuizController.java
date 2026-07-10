@@ -14,6 +14,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/flashcard-quiz")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class FlashcardQuizController {
 
     private final FlashcardQuizService flashcardQuizService;

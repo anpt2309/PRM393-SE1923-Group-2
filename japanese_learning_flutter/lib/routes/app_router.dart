@@ -1,4 +1,5 @@
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:japanese_learning/views/account/authen/login_screen.dart';
 import 'package:japanese_learning/views/account/authen/register_screen.dart';
 import 'package:japanese_learning/views/account/authen/forgot_password_screen.dart';
@@ -30,9 +31,15 @@ import 'package:japanese_learning/views/home/japanese_search_screen.dart';
 import 'package:japanese_learning/views/kanji/kanji_study_screen.dart';
 import 'package:japanese_learning/views/vocab/vocab_study_screen.dart';
 import 'package:japanese_learning/data/models/exam.dart';
+import 'package:japanese_learning/providers/auth_provider.dart';
+
+// Auth helper để lấy userId từ Riverpod
+int _getUserId(WidgetRef ref) {
+  final authState = ref.watch(authProvider);
+  return int.tryParse(authState.uid ?? '') ?? 1;
+}
 
 /// Định nghĩa các đường dẫn route tập trung tại một nơi.
-/// Dùng hằng số để tránh lỗi typo khi gọi điều hướng.
 class AppRoutes {
   static const home = '/';
   static const login = '/login';
@@ -49,6 +56,7 @@ class AppRoutes {
   // Flashcard
   static const flashcards = '/flashcards';
   static const flashcardCreate = '/flashcards/create';
+  static const flashcardEdit = '/flashcards/edit/:setId';
   static const flashcardStudy = '/flashcards/:setId/study';
   static const flashcardQuiz = '/flashcards/:setId/quiz';
   static const flashcardQuizHistory = '/flashcards/:setId/quiz/history';
@@ -74,7 +82,7 @@ class AppRoutes {
   static const grammar = '/grammar';
 }
 
-/// Hàm tiện ích: Build đường dẫn exam có tham số examId cụ thể.
+/// Hàm tiện ích: Build đường dẫn với tham số
 String examDetailPath(String examId) => '/exams/$examId';
 String examAttemptPath(String examId) => '/exams/$examId/attempt';
 String examHistoryPath(String examId) => '/exams/$examId/history';
@@ -82,6 +90,7 @@ String examHistoryReviewPath(String examId) => '/exams/$examId/history/review';
 String flashcardStudyPath(String setId) => '/flashcards/$setId/study';
 String flashcardQuizPath(String setId) => '/flashcards/$setId/quiz';
 String flashcardQuizHistoryPath(String setId) => '/flashcards/$setId/quiz/history';
+String flashcardEditPath(String setId) => '/flashcards/edit/$setId';
 
 /// Cấu hình GoRouter chính của toàn bộ ứng dụng.
 final appRouter = GoRouter(
@@ -131,7 +140,6 @@ final appRouter = GoRouter(
         GoRoute(
           path: ':examId',
           builder: (context, state) {
-            // Nhận đối tượng Exam được truyền qua 'extra'
             final exam = state.extra as Exam;
             return ExamDetailScreen(exam: exam);
           },
@@ -165,37 +173,92 @@ final appRouter = GoRouter(
     // ─── Flashcard ───────────────────────────────────────────
     GoRoute(
       path: AppRoutes.flashcards,
-      builder: (context, state) => const MySetsScreen(),
+      builder: (context, state) {
+        // Lấy userId từ Riverpod
+        final container = ProviderScope.containerOf(context);
+        final authState = container.read(authProvider);
+        final userId = int.tryParse(authState.uid ?? '') ?? 1;
+        return MySetsScreen(userId: userId);
+      },
       routes: [
+        // Route tạo bộ thẻ mới
         GoRoute(
           path: 'create',
-          builder: (context, state) => const CreateSetScreen(),
+          builder: (context, state) {
+            final container = ProviderScope.containerOf(context);
+            final authState = container.read(authProvider);
+            final userId = int.tryParse(authState.uid ?? '') ?? 1;
+            final extra = state.extra as Map<String, dynamic>?;
+            return CreateSetScreen(
+              userId: extra?['userId'] ?? userId,
+            );
+          },
         ),
+        // Route chỉnh sửa bộ thẻ
+        GoRoute(
+          path: 'edit/:setId',
+          builder: (context, state) {
+            final container = ProviderScope.containerOf(context);
+            final authState = container.read(authProvider);
+            final userId = int.tryParse(authState.uid ?? '') ?? 1;
+            final setId = int.parse(state.pathParameters['setId']!);
+            final extra = state.extra as Map<String, dynamic>?;
+            return CreateSetScreen(
+              userId: extra?['userId'] ?? userId,
+              setId: setId,
+              setName: extra?['setName'] ?? '',
+              description: extra?['description'] ?? '',
+              isPublic: extra?['isPublic'] ?? true,
+            );
+          },
+        ),
+        // Route học thẻ
         GoRoute(
           path: ':setId/study',
           builder: (context, state) {
-            final extra = state.extra as Map<String, dynamic>;
+            final container = ProviderScope.containerOf(context);
+            final authState = container.read(authProvider);
+            final userId = int.tryParse(authState.uid ?? '') ?? 1;
+            final setId = int.parse(state.pathParameters['setId']!);
+            final extra = state.extra as Map<String, dynamic>?;
             return StudySetScreen(
-              setName: extra['setName'] as String,
-              cardCount: extra['cardCount'] as int,
+              userId: extra?['userId'] ?? userId,
+              setId: setId,
+              setName: extra?['setName'] ?? '',
+              cardCount: extra?['cardCount'] ?? 0,
             );
           },
         ),
+        // Route làm bài kiểm tra
         GoRoute(
           path: ':setId/quiz',
           builder: (context, state) {
-            final extra = state.extra as Map<String, dynamic>;
+            final container = ProviderScope.containerOf(context);
+            final authState = container.read(authProvider);
+            final userId = int.tryParse(authState.uid ?? '') ?? 1;
+            final setId = int.parse(state.pathParameters['setId']!);
+            final extra = state.extra as Map<String, dynamic>?;
             return QuizScreen(
-              setName: extra['setName'] as String,
-              cards: extra['cards'] as List<Map<String, String>>,
+              userId: extra?['userId'] ?? userId,
+              setId: setId,
+              setName: extra?['setName'] ?? '',
             );
           },
         ),
+        // Route lịch sử
         GoRoute(
           path: ':setId/quiz/history',
           builder: (context, state) {
-            final setName = state.extra as String;
-            return HistoryFlashcardQuiz(setName: setName);
+            final container = ProviderScope.containerOf(context);
+            final authState = container.read(authProvider);
+            final userId = int.tryParse(authState.uid ?? '') ?? 1;
+            final setId = int.parse(state.pathParameters['setId']!);
+            final extra = state.extra as Map<String, dynamic>?;
+            return HistoryFlashcardQuiz(
+              userId: extra?['userId'] ?? userId,
+              setId: setId,
+              setName: extra?['setName'] ?? '',
+            );
           },
         ),
       ],
@@ -233,7 +296,6 @@ final appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.news,
       builder: (context, state) {
-        // Hỗ trợ truyền targetArticle từ FavoritesScreen qua extra
         final article = state.extra is Map<String, String>
             ? state.extra as Map<String, String>
             : null;
@@ -249,7 +311,6 @@ final appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.rewards,
       builder: (context, state) {
-        // Hỗ trợ truyền số coin từ StreakCalendarScreen qua extra
         final coins = state.extra is int ? state.extra as int : 0;
         return RewardShopScreen(currentCoins: coins);
       },

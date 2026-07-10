@@ -21,4 +21,6 @@ public class FlashcardQuizQuestionResponse {
 
     private String optionD;
 
+    private String correctAnswer;
+
 }

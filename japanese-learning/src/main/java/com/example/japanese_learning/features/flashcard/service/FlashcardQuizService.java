@@ -158,6 +158,8 @@ public class FlashcardQuizService {
 
                             .optionD(options.get(3))
 
+                            .correctAnswer(question.getCorrectAnswer())
+
                             .build();
 
 
@@ -497,6 +499,7 @@ public class FlashcardQuizService {
         return histories.stream()
                 .map(history -> FlashcardQuizHistoryResponse.builder()
                         .historyId(history.getId())
+                        .setId(history.getFlashcardSet().getId())
                         .setName(history.getFlashcardSet().getName())
                         .totalQuestion(history.getTotalQuestions())
                         .correctAnswer(history.getCorrectAnswers())

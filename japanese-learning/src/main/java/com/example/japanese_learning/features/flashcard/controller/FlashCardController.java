@@ -14,6 +14,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/flashcards")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class FlashCardController {
 
     private final FlashcardService flashcardService;
