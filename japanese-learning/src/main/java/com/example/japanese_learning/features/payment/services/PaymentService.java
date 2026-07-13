@@ -28,8 +28,8 @@ public class PaymentService {
     private final RewardRedemptionPaymentRepository redemptionRepository;
 
     // Cấu hình Ngân hàng tích hợp qua SePay
-    private static final String SEPAY_BANK_BIN = "970416"; // Mã BIN Ngân hàng (Ví dụ: 970416 là ACB)
-    private static final String SEPAY_ACC_NO = "123456789";  // Số tài khoản ngân hàng nhận tiền của bạn
+    private static final String SEPAY_BANK_BIN = "230904"; // Mã BIN Ngân hàng (Ví dụ: 970416 là ACB)
+    private static final String SEPAY_ACC_NO = "0968034541";  // Số tài khoản ngân hàng nhận tiền của bạn
 
     /**
      * Luồng tạo đơn mua, áp mã, trừ coin trực tiếp trên bảng User và tạo link QR Code thanh toán
