@@ -2,6 +2,7 @@ package com.example.japanese_learning.features.reward_exchange.services;
 
 import com.example.japanese_learning.dto.request.RedeemRequest;
 import com.example.japanese_learning.dto.response.RedeemResponse;
+import com.example.japanese_learning.dto.response.RewardResponse;
 import com.example.japanese_learning.entity.account.User;
 import com.example.japanese_learning.entity.rewards.CoinTransaction;
 import com.example.japanese_learning.entity.rewards.Reward;
@@ -16,6 +17,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -27,10 +30,14 @@ public class RewardService {
     private final CoinTransactionRepository coinTransactionRepository;
 
     @Transactional
-    public RedeemResponse redeemReward(Long userId, RedeemRequest request) {
-        // 1. Kiểm tra User tồn tại hay không
-        User user = userRewardRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Người dùng không tồn tại"));
+    // ─── THAY ĐỔI Ở ĐÂY ─────────────────────────────────────────
+    // Đổi kiểu tham số đầu vào từ Long userId thành String firebaseUid để khớp với Firebase
+    public RedeemResponse redeemReward(String firebaseUid, RedeemRequest request) {
+
+        // 1. Kiểm tra User tồn tại hay không thông qua Firebase UID thay vì ID tự tăng
+        User user = userRewardRepository.findByFirebaseUid(firebaseUid)
+                .orElseThrow(() -> new RuntimeException("Người dùng không tồn tại với UID: " + firebaseUid));
+        // ─────────────────────────────────────────────────────────────
 
         // 2. Kiểm tra phần thưởng (Reward) tồn tại hay không
         Reward reward = rewardRepository.findById(request.getRewardId())
@@ -71,5 +78,21 @@ public class RewardService {
                 .remainingCoin(remainingCoin)
                 .redeemedAt(LocalDateTime.now()) // Thời điểm xử lý thành công
                 .build();
+    }
+
+    // List rewards
+    public List<RewardResponse> getAllRewards() {
+        List<Reward> rewards = rewardRepository.findAll();
+
+        // Map từ Entity sang DTO rút gọn
+        return rewards.stream()
+                .map(reward -> RewardResponse.builder()
+                        .id(reward.getId())
+                        .name(reward.getName())
+                        .cost(reward.getCost())
+                        .discountAmount(reward.getDiscountAmount())
+                        .description(reward.getDescription())
+                        .build())
+                .collect(Collectors.toList());
     }
 }

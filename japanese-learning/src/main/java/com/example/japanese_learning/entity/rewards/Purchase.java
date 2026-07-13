@@ -37,18 +37,18 @@ public class Purchase {
 
     // Giá gốc
     @Column(nullable = false)
-    private Integer originalPrice = 0;
+    private Integer originalPrice;
 
     // Tiền được giảm
     @Column(nullable = false)
-    private Integer discountAmount = 0;
+    private Integer discountAmount;
 
     // Giá cuối cùng
     @Column(nullable = false)
-    private Integer finalPrice = 0;
+    private Integer finalPrice;
 
     // Voucher đã sử dụng
-    @OneToOne(mappedBy = "purchase", cascade = CascadeType.ALL)
+    @OneToOne(mappedBy = "purchase")
     private RewardRedemption appliedRedemption;
 
     @Column(name = "created_at", insertable = false, updatable = false)

@@ -42,7 +42,7 @@ public class Exam {
     private String level;
 
     @Column(name = "price")
-    private Double price;
+    private Integer price;
 
     @Column(name = "start")
     private Double start;
