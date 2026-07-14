@@ -92,6 +92,7 @@ String flashcardQuizPath(String setId) => '/flashcards/$setId/quiz';
 String flashcardQuizHistoryPath(String setId) => '/flashcards/$setId/quiz/history';
 String flashcardEditPath(String setId) => '/flashcards/edit/$setId';
 
+String rewardShopPath() => '/rewards';
 /// Cấu hình GoRouter chính của toàn bộ ứng dụng.
 final appRouter = GoRouter(
   initialLocation: AppRoutes.home,
@@ -311,6 +312,7 @@ final appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.rewards,
       builder: (context, state) {
+        // NHẬN DỮ LIỆU TỪ EXTRA: Kiểm tra kiểu dữ liệu an toàn trước khi ép kiểu sang int[cite: 11]
         final coins = state.extra is int ? state.extra as int : 0;
         return RewardShopScreen(currentCoins: coins);
       },
