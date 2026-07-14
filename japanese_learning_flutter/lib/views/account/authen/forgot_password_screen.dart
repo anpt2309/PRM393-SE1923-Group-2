@@ -77,7 +77,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 20),
-            Center(child: Text('Mazii', style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.blue.shade600))),
+            Center(child: Text('JPN', style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.blue.shade600))),
             const SizedBox(height: 40),
             Text('Quên mật khẩu', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textColor)),
             const SizedBox(height: 8),

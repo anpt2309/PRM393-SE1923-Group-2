@@ -176,7 +176,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       children: const [
                         TextSpan(text: 'Tôi đồng ý với các '),
                         TextSpan(text: 'điều khoản sử dụng', style: TextStyle(color: Color(0xFF2196F3), fontWeight: FontWeight.w500, decoration: TextDecoration.underline)),
-                        TextSpan(text: ' của Mazii'),
+                        TextSpan(text: ' của JPN'),
                       ],
                     ),
                   ),

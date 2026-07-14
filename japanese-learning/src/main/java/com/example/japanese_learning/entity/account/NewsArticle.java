@@ -15,10 +15,10 @@ public class NewsArticle {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id", nullable = false)
+    @JoinColumn(name = "category_id")
     private NewsCategory category;
 
-    @Column(nullable = false)
+    @Column()
     private String title;
 
     @Column(columnDefinition = "TEXT")
@@ -27,13 +27,13 @@ public class NewsArticle {
     @Column(name = "image_url")
     private String imageUrl;
 
-    @Column(name = "audio_url", nullable = false)
+    @Column(name = "audio_url")
     private String audioUrl;
 
-    @Column(name = "content_kanji_script", nullable = false, columnDefinition = "TEXT")
+    @Column(name = "content_kanji_script", columnDefinition = "TEXT")
     private String contentKanjiScript;
 
-    @Column(name = "content_translation", nullable = false, columnDefinition = "TEXT")
+    @Column(name = "content_translation", columnDefinition = "TEXT")
     private String contentTranslation;
 
     @Column(name = "created_at", insertable = false, updatable = false)

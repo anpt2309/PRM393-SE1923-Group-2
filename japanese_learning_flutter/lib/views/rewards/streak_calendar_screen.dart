@@ -1,12 +1,11 @@
-// lib/vocab_kanji_grammar/streak_calendar_screen.dart
-// Đã refactor sang ConsumerStatefulWidget sử dụng streakProvider (Riverpod).
-// Logic nghiệp vụ (streak, coin, calendar) nằm trong StreakNotifier.
-// UI state thuần túy (dialog) vẫn giữ trong State class.
+// lib/views/rewards/streak_calendar_screen.dart
+// Đã được cấu hình đồng bộ trực tiếp với dữ liệu API Backend thông qua streakProvider thực tế.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/streak_provider.dart';
+import '../../providers/auth_provider.dart'; // Import để lấy thông tin firebaseUid hiện tại
 
 class StreakCalendarScreen extends ConsumerStatefulWidget {
   const StreakCalendarScreen({super.key});
@@ -16,21 +15,48 @@ class StreakCalendarScreen extends ConsumerStatefulWidget {
 }
 
 class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
+  DateTime _currentMonth = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    // Tự động gọi API điểm danh khi vừa mở màn hình dựa trên tài khoản đang đăng nhập
+    Future.microtask(() {
+      final authState = ref.read(authProvider);
+      if (authState.user != null) {
+        ref.read(streakProvider.notifier).performDailyCheckin(authState.user!.uid);
+      }
+    });
+  }
 
   // ── Helpers UI ────────────────────────────────────────────────
 
   void _claimDailyReward() {
-    final notifier = ref.read(streakProvider.notifier);
-    final success = notifier.claimDailyReward();
-    if (!success) {
-      _showSnackBar('Bạn đã nhận thưởng hôm nay rồi!', Colors.orange);
+    final authState = ref.read(authProvider);
+    if (authState.user == null) {
+      _showSnackBar('Bạn cần đăng nhập để điểm danh!', Colors.red);
       return;
     }
-    _showRewardDialog();
+
+    // Gọi API xử lý điểm danh từ Provider
+    ref.read(streakProvider.notifier).performDailyCheckin(authState.user!.uid).then((_) {
+      final state = ref.read(streakProvider);
+      if (state.error != null) {
+        _showSnackBar(state.error!, Colors.red);
+      } else if (state.checkinData != null) {
+        if (state.checkinData!.isNewCheckinToday) {
+          _showRewardDialog();
+        } else {
+          _showSnackBar('Bạn đã nhận thưởng điểm danh hôm nay rồi!', Colors.orange);
+        }
+      }
+    });
   }
 
   void _showRewardDialog() {
     final state = ref.read(streakProvider);
+    final streakDays = state.checkinData?.streakDays ?? 0;
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -42,21 +68,22 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
             Container(
               width: 80, height: 80,
               decoration: BoxDecoration(
-                color: Colors.amber.withValues(alpha: 0.2),
+                color: Colors.amber.withAlpha(51), // Thay thế với các thiết lập alpha tiêu chuẩn
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.card_giftcard, color: Colors.amber, size: 48),
             ),
             const SizedBox(height: 16),
-            Text(
-              '+${state.todayReward}',
-              style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Color(0xFFFF6B35)),
+            const Text(
+              'Thành Công!',
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFFFF6B35)),
             ),
             const SizedBox(height: 8),
-            const Text('Bạn đã nhận thưởng đăng nhập!',
+            const Text('Ghi nhận điểm danh hàng ngày thành công!',
+                textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
             const SizedBox(height: 8),
-            Text('Đăng nhập ${state.currentStreak} ngày liên tiếp',
+            Text('Đăng nhập $streakDays ngày liên tiếp',
                 style: TextStyle(fontSize: 14, color: Colors.grey[600])),
             const SizedBox(height: 16),
             Row(
@@ -68,7 +95,7 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
                       foregroundColor: const Color(0xFF1E88E5),
                       side: const BorderSide(color: Color(0xFF1E88E5)),
                     ),
-                    child: const Text('Đóng'),
+                    child: const Text('Tuyệt vời'),
                   ),
                 ),
               ],
@@ -86,7 +113,8 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
   }
 
   void _goToShop() {
-    final totalCoins = ref.read(streakProvider).totalCoins;
+    final state = ref.read(streakProvider);
+    final totalCoins = state.checkinData?.currentCoin ?? 0;
     context.push('/rewards', extra: totalCoins);
   }
 
@@ -96,11 +124,18 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
     return '${months[date.month - 1]} ${date.year}';
   }
 
+  void _changeMonth(int direction) {
+    setState(() {
+      _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + direction, 1);
+    });
+  }
+
   // ── Build ──────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(streakProvider);
+    final totalCoins = state.checkinData?.currentCoin ?? 0;
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -126,14 +161,14 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
               margin: const EdgeInsets.only(right: 16),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
+                color: Colors.white.withAlpha(51),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
                 children: [
                   const Icon(Icons.monetization_on, color: Colors.amber, size: 18),
                   const SizedBox(width: 4),
-                  Text('${state.totalCoins}',
+                  Text('$totalCoins',
                       style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                 ],
               ),
@@ -141,7 +176,9 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
+      body: state.isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
         child: Column(
           children: [
             _buildStreakHeader(state),
@@ -163,6 +200,9 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
   }
 
   Widget _buildStreakHeader(StreakState state) {
+    final streakDays = state.checkinData?.streakDays ?? 0;
+    final totalCoins = state.checkinData?.currentCoin ?? 0;
+
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(24),
@@ -175,7 +215,7 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF1E88E5).withValues(alpha: 0.3),
+            color: const Color(0xFF1E88E5).withAlpha(76),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -188,15 +228,15 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
             children: [
               const Icon(Icons.local_fire_department, color: Colors.white, size: 32),
               const SizedBox(width: 12),
-              Text('${state.currentStreak} ngày',
+              Text('$streakDays ngày',
                   style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white)),
             ],
           ),
           const SizedBox(height: 8),
           Text(
-            state.currentStreak == 1
-                ? 'Bạn đã đăng nhập 1 ngày liên tiếp'
-                : 'Bạn đã đăng nhập ${state.currentStreak} ngày liên tiếp',
+            streakDays <= 1
+                ? 'Bạn đã đăng nhập $streakDays ngày liên tiếp'
+                : 'Bạn đã đăng nhập $streakDays ngày liên tiếp',
             style: const TextStyle(color: Colors.white70, fontSize: 14),
           ),
           const SizedBox(height: 16),
@@ -205,7 +245,7 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
+                color: Colors.white.withAlpha(51),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
@@ -213,7 +253,7 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
                 children: [
                   const Icon(Icons.monetization_on, color: Colors.amber, size: 20),
                   const SizedBox(width: 4),
-                  Text('Tổng coin: ${state.totalCoins}',
+                  Text('Tổng coin: $totalCoins',
                       style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
                 ],
               ),
@@ -225,23 +265,26 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
   }
 
   Widget _buildDailyRewardButton(StreakState state) {
+    // Nếu hôm nay mới checkin thành công từ API, nút bấm sẽ bị vô hiệu hóa (disabled)
+    final hasClaimedToday = !(state.checkinData?.isNewCheckinToday ?? true);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       child: ElevatedButton.icon(
-        onPressed: state.hasClaimedToday ? null : _claimDailyReward,
-        icon: Icon(state.hasClaimedToday ? Icons.check_circle : Icons.card_giftcard, size: 24),
+        onPressed: hasClaimedToday ? null : _claimDailyReward,
+        icon: Icon(hasClaimedToday ? Icons.check_circle : Icons.card_giftcard, size: 24),
         label: Column(
           children: [
             Text(
-              state.hasClaimedToday ? 'Đã nhận thưởng hôm nay' : 'Nhận thưởng đăng nhập',
+              hasClaimedToday ? 'Đã nhận thưởng hôm nay' : 'Nhận thưởng đăng nhập',
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
-            if (!state.hasClaimedToday)
-              Text('+${state.todayReward} coin', style: const TextStyle(fontSize: 13)),
+            if (!hasClaimedToday)
+              const Text('Điểm danh nhận quà liền tay', style: TextStyle(fontSize: 13)),
           ],
         ),
         style: ElevatedButton.styleFrom(
-          backgroundColor: state.hasClaimedToday ? Colors.grey[400] : const Color(0xFFFF6B35),
+          backgroundColor: hasClaimedToday ? Colors.grey[400] : const Color(0xFFFF6B35),
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -252,15 +295,17 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
   }
 
   Widget _buildStatsRow(StreakState state) {
+    final streakDays = state.checkinData?.streakDays ?? 0;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          Expanded(child: _buildStatCard(icon: Icons.local_fire_department, value: '${state.currentStreak}', label: 'Streak hiện tại', color: Colors.orange)),
+          Expanded(child: _buildStatCard(icon: Icons.local_fire_department, value: '$streakDays', label: 'Streak hiện tại', color: Colors.orange)),
           const SizedBox(width: 12),
-          Expanded(child: _buildStatCard(icon: Icons.emoji_events, value: '${state.bestStreak}', label: 'Streak cao nhất', color: Colors.amber)),
+          Expanded(child: _buildStatCard(icon: Icons.emoji_events, value: '$streakDays', label: 'Streak cao nhất', color: Colors.amber)),
           const SizedBox(width: 12),
-          Expanded(child: _buildStatCard(icon: Icons.calendar_today, value: '${state.totalLoginDays}', label: 'Tổng số ngày', color: const Color(0xFF1E88E5))),
+          Expanded(child: _buildStatCard(icon: Icons.calendar_today, value: state.checkinData != null ? '1' : '0', label: 'Tổng số ngày', color: const Color(0xFF1E88E5))),
         ],
       ),
     );
@@ -272,7 +317,7 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.grey.withAlpha(25), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(
         children: [
@@ -287,8 +332,8 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
   }
 
   Widget _buildCalendar(StreakState state) {
-    final firstDayOfMonth = DateTime(state.currentMonth.year, state.currentMonth.month, 1);
-    final daysInMonth = DateTime(state.currentMonth.year, state.currentMonth.month + 1, 0).day;
+    final firstDayOfMonth = DateTime(_currentMonth.year, _currentMonth.month, 1);
+    final daysInMonth = DateTime(_currentMonth.year, _currentMonth.month + 1, 0).day;
     final firstWeekday = firstDayOfMonth.weekday;
     int startOffset = firstWeekday - 1;
 
@@ -296,19 +341,26 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
     for (int i = 0; i < startOffset; i++) {
       monthDays.add({'isEmpty': true});
     }
+
+    // Lấy ngày đăng nhập gần nhất từ API phục vụ vẽ lịch hiển thị nhanh
+    final serverLastLogin = state.checkinData?.lastLogin;
+
     for (int day = 1; day <= daysInMonth; day++) {
-      final date = DateTime(state.currentMonth.year, state.currentMonth.month, day);
-      final calendarItem = state.calendarData.firstWhere(
-        (item) => item['date'].year == date.year && item['date'].month == date.month && item['date'].day == date.day,
-        orElse: () => {'date': date, 'day': day, 'month': date.month, 'year': date.year, 'isLoggedIn': false, 'isToday': false, 'coinEarned': 0},
-      );
+      final date = DateTime(_currentMonth.year, _currentMonth.month, day);
+      final isToday = date.year == DateTime.now().year && date.month == DateTime.now().month && date.day == DateTime.now().day;
+
+      // So sánh trực tiếp với trường ngày đăng nhập lấy từ API Backend trả về
+      final bool isLoggedInOnServerDate = serverLastLogin != null &&
+          serverLastLogin.year == date.year &&
+          serverLastLogin.month == date.month &&
+          serverLastLogin.day == date.day;
+
       monthDays.add({
         'isEmpty': false,
         'day': day,
-        'isLoggedIn': calendarItem['isLoggedIn'] ?? false,
-        'isToday': date.year == DateTime.now().year && date.month == DateTime.now().month && date.day == DateTime.now().day,
+        'isLoggedIn': isLoggedInOnServerDate,
+        'isToday': isToday,
         'date': date,
-        'coinEarned': calendarItem['coinEarned'] ?? 0,
       });
     }
     final remainingCells = 42 - monthDays.length;
@@ -322,7 +374,7 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.grey.withAlpha(25), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(
         children: [
@@ -330,14 +382,14 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               IconButton(
-                onPressed: () => ref.read(streakProvider.notifier).changeMonth(-1),
+                onPressed: () => _changeMonth(-1),
                 icon: const Icon(Icons.chevron_left, size: 28),
                 color: const Color(0xFF1E88E5),
               ),
-              Text(_formatMonthYear(state.currentMonth),
+              Text(_formatMonthYear(_currentMonth),
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               IconButton(
-                onPressed: () => ref.read(streakProvider.notifier).changeMonth(1),
+                onPressed: () => _changeMonth(1),
                 icon: const Icon(Icons.chevron_right, size: 28),
                 color: const Color(0xFF1E88E5),
               ),
@@ -360,9 +412,8 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
                   if (dayData['isEmpty'] == true) return _buildEmptyCell();
                   return _buildDayCell(
                     day: dayData['day'],
-                    isLoggedIn: dayData['isLoggedIn'],
-                    isToday: dayData['isToday'],
-                    coinEarned: dayData['coinEarned'],
+                    isLoggedIn: dayData['isLoggedIn'] ?? false,
+                    isToday: dayData['isToday'] ?? false,
                   );
                 }),
               );
@@ -375,10 +426,6 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
               Container(width: 12, height: 12, decoration: const BoxDecoration(color: Color(0xFF1E88E5), shape: BoxShape.circle)),
               const SizedBox(width: 4),
               const Text('Đã đăng nhập', style: TextStyle(fontSize: 12, color: Colors.grey)),
-              const SizedBox(width: 16),
-              const Icon(Icons.monetization_on, size: 14, color: Colors.amber),
-              const SizedBox(width: 4),
-              const Text('Nhận coin', style: TextStyle(fontSize: 12, color: Colors.grey)),
             ],
           ),
         ],
@@ -400,14 +447,14 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
     return Expanded(child: Container(padding: const EdgeInsets.all(4), child: const SizedBox(height: 50)));
   }
 
-  Widget _buildDayCell({required int day, required bool isLoggedIn, required bool isToday, required int coinEarned}) {
+  Widget _buildDayCell({required int day, required bool isLoggedIn, required bool isToday}) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(4),
         child: Container(
           height: 50,
           decoration: BoxDecoration(
-            color: isLoggedIn ? const Color(0xFF1E88E5).withValues(alpha: 0.15) : Colors.transparent,
+            color: isLoggedIn ? const Color(0xFF1E88E5).withAlpha(38) : Colors.transparent,
             shape: BoxShape.circle,
             border: isToday ? Border.all(color: const Color(0xFF1E88E5), width: 2) : null,
           ),
@@ -425,8 +472,6 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
                       color: isLoggedIn ? const Color(0xFF1E88E5) : (isToday ? const Color(0xFF1E88E5) : Colors.grey[700]),
                     ),
                   ),
-                  if (coinEarned > 0)
-                    Text('+$coinEarned', style: const TextStyle(fontSize: 9, color: Colors.amber, fontWeight: FontWeight.w500)),
                 ],
               ),
             ],
@@ -437,7 +482,14 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
   }
 
   Widget _buildRewardInfo(StreakState state) {
-    final nextReward = ref.read(streakProvider.notifier).getNextReward();
+    final streakDays = state.checkinData?.streakDays ?? 0;
+    int target = 7;
+    if (streakDays >= 7 && streakDays < 14) target = 14;
+    if (streakDays >= 14 && streakDays < 30) target = 30;
+    if (streakDays >= 30) target = 100;
+
+    int daysNeeded = target - streakDays;
+    if (daysNeeded < 0) daysNeeded = 0;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -445,7 +497,7 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.grey.withAlpha(25), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -461,9 +513,9 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Còn ${nextReward['daysNeeded']} ngày nữa',
+              Text(daysNeeded > 0 ? 'Còn $daysNeeded ngày nữa' : 'Đã đạt mốc tối đa',
                   style: TextStyle(fontSize: 14, color: Colors.grey[600])),
-              Text('${state.currentStreak}/${nextReward['target']}',
+              Text('$streakDays/$target',
                   style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E88E5))),
             ],
           ),
@@ -471,7 +523,7 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: LinearProgressIndicator(
-              value: state.currentStreak / (nextReward['target'] as int),
+              value: target > 0 ? (streakDays / target).clamp(0.0, 1.0) : 0,
               backgroundColor: Colors.grey[200],
               valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFF6B35)),
               minHeight: 8,
@@ -482,10 +534,10 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [const Color(0xFFFF6B35).withValues(alpha: 0.1), const Color(0xFFFF6B35).withValues(alpha: 0.05)],
+                colors: [const Color(0xFFFF6B35).withAlpha(25), const Color(0xFFFF6B35).withAlpha(13)],
               ),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFFF6B35).withValues(alpha: 0.2)),
+              border: Border.all(color: const Color(0xFFFF6B35).withAlpha(51)),
             ),
             child: Row(
               children: [
@@ -494,7 +546,7 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(25),
-                    boxShadow: [BoxShadow(color: const Color(0xFFFF6B35).withValues(alpha: 0.3), blurRadius: 10)],
+                    boxShadow: [BoxShadow(color: const Color(0xFFFF6B35).withAlpha(76), blurRadius: 10)],
                   ),
                   child: const Icon(Icons.workspace_premium, color: Color(0xFFFF6B35), size: 28),
                 ),
@@ -503,9 +555,9 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(nextReward['title'] as String, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      const Text('Mốc quà kế tiếp', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
-                      Text(nextReward['description'] as String, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+                      Text('Duy trì chuỗi học tập để mở khóa phần thưởng danh giá.', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
                     ],
                   ),
                 ),
@@ -516,10 +568,10 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
           const SizedBox(height: 16),
           const Text('Các mốc phần thưởng', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
           const SizedBox(height: 12),
-          _buildRewardMilestone(7, '7 ngày', '50 coin + Huy hiệu', state.currentStreak >= 7),
-          _buildRewardMilestone(14, '14 ngày', '100 coin + Huy hiệu Bạc', state.currentStreak >= 14),
-          _buildRewardMilestone(30, '30 ngày', '200 coin + Huy hiệu Vàng', state.currentStreak >= 30),
-          _buildRewardMilestone(100, '100 ngày', '500 coin + Huy hiệu Kim cương', state.currentStreak >= 100),
+          _buildRewardMilestone(7, '7 ngày', 'Nhận Huy hiệu chuyên cần', streakDays >= 7),
+          _buildRewardMilestone(14, '14 ngày', 'Nhận Huy hiệu Bạc', streakDays >= 14),
+          _buildRewardMilestone(30, '30 ngày', 'Nhận Huy hiệu Vàng', streakDays >= 30),
+          _buildRewardMilestone(100, '100 ngày', 'Nhận Huy hiệu Kim cương', streakDays >= 100),
         ],
       ),
     );
@@ -533,7 +585,7 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
           Container(
             width: 32, height: 32,
             decoration: BoxDecoration(
-              color: isAchieved ? const Color(0xFF1E88E5).withValues(alpha: 0.15) : Colors.grey[200],
+              color: isAchieved ? const Color(0xFF1E88E5).withAlpha(38) : Colors.grey[200],
               shape: BoxShape.circle,
             ),
             child: Center(
@@ -567,7 +619,7 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.grey.withAlpha(25), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -616,7 +668,7 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
         children: [
           Container(
             width: 40, height: 40,
-            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: color.withAlpha(25), borderRadius: BorderRadius.circular(12)),
             child: Icon(icon, color: color, size: 22),
           ),
           const SizedBox(width: 12),
@@ -624,7 +676,7 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.amber.withValues(alpha: 0.1),
+              color: Colors.amber.withAlpha(25),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(

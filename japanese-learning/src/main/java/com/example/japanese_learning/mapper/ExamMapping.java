@@ -1,5 +1,4 @@
 package com.example.japanese_learning.mapper;
-
 import com.example.japanese_learning.dto.response.ExamDetailResponse;
 import com.example.japanese_learning.dto.response.ExamPartResponse;
 import com.example.japanese_learning.dto.response.ExamResponse;
@@ -34,7 +33,7 @@ public interface ExamMapping {
         }
         ExamDetailResponse examDetailMapping = toExamDetailResponse(projections.get(0));
         List<ExamPartResponse> partMapping = new ArrayList<>();
-        for (ExamProjection p : projections) {
+        for(ExamProjection p : projections){
             ExamPartResponse response = ExamPartResponse.builder()
                     .partName(p.getPartName())
                     .partDuration(p.getPartDuration())

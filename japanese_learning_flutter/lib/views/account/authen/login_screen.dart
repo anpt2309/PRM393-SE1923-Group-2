@@ -168,7 +168,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 40),
-            Center(child: Text('Mazii', style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.blue.shade600))),
+            Center(child: Text('JPN', style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.blue.shade600))),
             const SizedBox(height: 40),
             Text('Đăng nhập', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textColor)),
             const SizedBox(height: 8),
@@ -245,7 +245,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text('Bạn chưa có tài khoản Mazii? ', style: TextStyle(color: subTextColor)),
+                Text('Bạn chưa có tài khoản JPN? ', style: TextStyle(color: subTextColor)),
                 GestureDetector(
                   onTap: () {
                     context.push('/register', extra: {
