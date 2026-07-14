@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -14,6 +15,17 @@ import 'dart:math';
 
 
 class AuthService {
+
+  static String get baseUrl {
+    if (kIsWeb) return 'http://localhost:8080';
+    try {
+      return Platform.isAndroid
+          ? 'http://10.0.2.2:8080'
+          : 'http://localhost:8080';
+    } catch (_) {
+      return 'http://localhost:8080';
+    }
+  }
   static final AuthService _instance =
   AuthService._internal();
 
@@ -43,6 +55,28 @@ class AuthService {
   String generateOtp() {
     final random = Random();
     return (100000 + random.nextInt(900000)).toString();
+  }
+  Future<void> registerFirebaseUser(User user) async {
+    final uri = Uri.parse('$baseUrl/api/users/register-firebase');
+
+    final response = await http.post(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'firebaseUid': user.uid,
+        'email': user.email,
+        'username': user.displayName ?? user.email!.split('@')[0],
+        'avatar': user.photoURL ?? '',
+      }),
+    ).timeout(const Duration(seconds: 8));
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw AuthException(
+        'Không thể lưu người dùng vào MySQL (${response.statusCode})',
+      );
+    }
   }
 
   /// 1. Tạo mã OTP (dành cho các tính năng khác nếu cần)
@@ -190,13 +224,24 @@ class AuthService {
 
   Future<User> register({required String email, required String password}) async {
     try {
-      final result = await _auth.createUserWithEmailAndPassword(email: email.trim(), password: password);
-      await _firestore.collection('users').doc(result.user!.uid).set({
-        'uid': result.user!.uid,
+      final result = await _auth.createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+
+      final user = result.user!;
+
+// 1. Lưu vào MySQL
+      await registerFirebaseUser(user);
+
+// 2. Lưu Firestore
+      await _firestore.collection('users').doc(user.uid).set({
+        'uid': user.uid,
         'email': email.trim().toLowerCase(),
         'createdAt': FieldValue.serverTimestamp(),
       });
-      return result.user!;
+
+      return user;
     } on FirebaseAuthException catch (e) {
       throw AuthErrorMapper.fromRegister(e);
     } catch (e) {
