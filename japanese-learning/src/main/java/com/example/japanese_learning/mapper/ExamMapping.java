@@ -1,4 +1,5 @@
 package com.example.japanese_learning.mapper;
+
 import com.example.japanese_learning.dto.response.ExamDetailResponse;
 import com.example.japanese_learning.dto.response.ExamPartResponse;
 import com.example.japanese_learning.dto.response.ExamResponse;
@@ -20,6 +21,7 @@ public interface ExamMapping {
     @Mapping(source = "price", target = "price", qualifiedByName = "definedPrice")
     @Mapping(source = "userCount", target = "userCount", qualifiedByName = "definedUserCount")
     ExamResponse toExam(Exam exam);
+
     List<ExamResponse> toExamResponse(List<Exam> exam);
 
     @Mapping(source = "difficulty", target = "difficulty", qualifiedByName = "definedDifficulty")
@@ -32,7 +34,7 @@ public interface ExamMapping {
         }
         ExamDetailResponse examDetailMapping = toExamDetailResponse(projections.get(0));
         List<ExamPartResponse> partMapping = new ArrayList<>();
-        for(ExamProjection p : projections){
+        for (ExamProjection p : projections) {
             ExamPartResponse response = ExamPartResponse.builder()
                     .partName(p.getPartName())
                     .partDuration(p.getPartDuration())
@@ -45,6 +47,9 @@ public interface ExamMapping {
 
     @Named("definedDifficulty")
     default String definedDifficult(Integer difficult) {
+        if (difficult == null) {
+            return "";
+        }
         if (difficult == 1) {
             return "Dễ";
         } else if (difficult == 2) {
@@ -57,10 +62,13 @@ public interface ExamMapping {
     @Named("definedPrice")
     default String definedPrice(Double price) {
         String formatted = "";
-        if(price != 0){
+        if (price == null) {
+            return "";
+        }
+        if (price != 0) {
             DecimalFormat formatter = new DecimalFormat("#,###");
             formatted = formatter.format(price);
-        }else{
+        } else {
             formatted = "miễn phí";
         }
         return formatted;

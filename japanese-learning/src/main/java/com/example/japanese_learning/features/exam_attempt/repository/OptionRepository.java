@@ -28,4 +28,15 @@ public interface OptionRepository extends JpaRepository<Option, Long> {
             "WHERE ex.id = :examId AND op.is_correct = true", nativeQuery = true)
     List<OptionProjection> findAllQuestionByExam_Id(@Param("examId") Long examId);
 
+    // BJT Logic
+    @Query(value = "SELECT op.question_id AS questionId, op.id AS optionCorrectId " +
+            "FROM options op " +
+            "INNER JOIN questions qes ON op.question_id = qes.id " +
+            "INNER JOIN exam_parts par ON qes.part_id = par.id " +
+            "INNER JOIN exams ex ON par.exam_id = ex.id " +
+            "WHERE ex.id =:examId " +
+            "AND par.order_index =:partId " +
+            "AND op.is_correct = true", nativeQuery = true)
+    List<OptionProjection> findAllQuestionByPartId(@Param("examId") Long examId,
+                                                   @Param("partId") Integer partId);
 }

@@ -17,6 +17,7 @@ public class ExamPart {
 
     private Long duration;
 
+    // Lưu thứ tự các part theo bài thi
     @Column(name = "order_index")
     private Integer orderIndex;
 

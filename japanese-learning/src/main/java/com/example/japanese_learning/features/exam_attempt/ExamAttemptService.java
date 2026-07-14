@@ -61,7 +61,6 @@ public class ExamAttemptService {
 
         List<QuestionProjection> getQuestion = examStrategy.getQuestion(examId);
         // Mapping part theo Question & Option
-        List<ExamPart> partExam = partRepository.findByExamId(examId);
         Map<Long, List<QuestionResponse>> mapping = new HashMap<>();
         for (QuestionProjection questionProjection : getQuestion) {
             QuestionResponse mappingQuesstion = questionMapping.toQuestionResponse(questionProjection);
@@ -73,6 +72,7 @@ public class ExamAttemptService {
         }
 
         List<ExamPartAttemptResponse> responses = new ArrayList<>();
+        List<ExamPart> partExam = partRepository.findByExamId(examId);
         for (ExamPart part : partExam) {
             if (mapping.containsKey(part.getId())) {
                 List<QuestionResponse> value = mapping.get(part.getId());

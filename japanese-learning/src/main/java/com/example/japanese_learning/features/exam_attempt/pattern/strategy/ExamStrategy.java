@@ -10,7 +10,7 @@ import com.example.japanese_learning.features.exam_attempt.repository.projection
 import java.util.List;
 
 public interface ExamStrategy {
-    List<QuestionProjection> getQuestion(Long examPartId);
+    List<QuestionProjection> getQuestion(Long examId);
 
     // Lấy ra loại bài thi
     String examType();
