@@ -61,4 +61,25 @@ class RewardService {
     final errorMsg = decodedData['message'] ?? 'Đổi quà thất bại';
     throw Exception(errorMsg);
   }
+
+  // Thêm hàm này vào class RewardService
+
+  Future<List<RedeemHistoryModel>> fetchRedeemHistory(String firebaseUid) async {
+    final uri = Uri.parse('$baseUrl/api/rewards/history/$firebaseUid');
+    final response = await http.get(uri).timeout(const Duration(seconds: 8));
+
+    if (response.statusCode == 200) {
+      final decodedData = json.decode(utf8.decode(response.bodyBytes));
+      if (decodedData is Map<String, dynamic> &&
+          decodedData.containsKey('data')) {
+        final dataField = decodedData['data'];
+        if (dataField is List) {
+          return dataField.map((item) => RedeemHistoryModel.fromJson(item)).toList();
+        }
+      }
+    }
+    throw Exception(
+      'Không thể lấy lịch sử đổi thưởng: ${response.statusCode}',
+    );
+  }
 }

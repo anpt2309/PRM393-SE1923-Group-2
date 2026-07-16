@@ -34,4 +34,9 @@ public class UserService {
                     return userRepository.save(user);
                 });
     }
+
+    public User getUserByFirebaseUid(String firebaseUid) {
+        return userRepository.findByFirebaseUid(firebaseUid)
+                .orElseThrow(() -> new RuntimeException("User not found with uid: " + firebaseUid));
+    }
 }

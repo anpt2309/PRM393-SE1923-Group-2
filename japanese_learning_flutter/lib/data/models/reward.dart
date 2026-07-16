@@ -51,3 +51,34 @@ class RedeemResponseModel {
     );
   }
 }
+
+class RedeemHistoryModel {
+  final int id;
+  final String rewardName;
+  final int cost;
+  final String voucherCode;
+  final bool isUsed;
+  final DateTime redeemedAt;
+
+  RedeemHistoryModel({
+    required this.id,
+    required this.rewardName,
+    required this.cost,
+    required this.voucherCode,
+    required this.isUsed,
+    required this.redeemedAt,
+  });
+
+  factory RedeemHistoryModel.fromJson(Map<String, dynamic> json) {
+    return RedeemHistoryModel(
+      id: json['id'] as int? ?? 0,
+      rewardName: json['rewardName'] as String? ?? '',
+      cost: json['cost'] as int? ?? 0,
+      voucherCode: json['voucherCode'] as String? ?? '',
+      isUsed: json['isUsed'] as bool? ?? false,
+      redeemedAt: json['redeemedAt'] != null
+          ? DateTime.parse(json['redeemedAt'] as String)
+          : DateTime.now(),
+    );
+  }
+}

@@ -23,7 +23,7 @@ public class RewardRedemption {
     @JoinColumn(name = "reward_id")
     private Reward reward;
 
-    @Column(name = "redeemed_at", insertable = false, updatable = false)
+    @Column(name = "redeemed_at")
     private LocalDateTime redeemedAt;
 
     @Column(name = "voucher_code")

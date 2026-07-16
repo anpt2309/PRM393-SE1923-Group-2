@@ -2,6 +2,7 @@ package com.example.japanese_learning.features.reward_exchange.controllers;
 
 import com.example.japanese_learning.dto.request.RedeemRequest;
 import com.example.japanese_learning.dto.response.ApiResponse;
+import com.example.japanese_learning.dto.response.RedeemHistoryResponse;
 import com.example.japanese_learning.dto.response.RedeemResponse;
 import com.example.japanese_learning.dto.response.RewardResponse;
 import com.example.japanese_learning.features.reward_exchange.services.RewardService;
@@ -53,6 +54,21 @@ public class RewardController {
                 .id(200)
                 .message("Lấy danh sách phần thưởng thành công!")
                 .data(rewards)
+                .build();
+
+        return ResponseEntity.ok(apiResponse);
+    }
+
+    // Thêm endpoint này vào file RewardController.java
+
+    @GetMapping("/history/{firebaseUid}")
+    public ResponseEntity<ApiResponse<List<RedeemHistoryResponse>>> getRedeemHistory(@PathVariable String firebaseUid) {
+        List<RedeemHistoryResponse> history = rewardService.getRedeemHistory(firebaseUid);
+
+        ApiResponse<List<RedeemHistoryResponse>> apiResponse = ApiResponse.<List<RedeemHistoryResponse>>builder()
+                .id(200)
+                .message("Lấy lịch sử đổi thưởng thành công!")
+                .data(history)
                 .build();
 
         return ResponseEntity.ok(apiResponse);

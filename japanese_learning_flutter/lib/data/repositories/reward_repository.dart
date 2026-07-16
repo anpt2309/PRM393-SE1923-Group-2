@@ -21,4 +21,12 @@ class RewardRepository {
       rethrow;
     }
   }
+
+  Future<List<RedeemHistoryModel>> getRedeemHistory(String firebaseUid) async {
+    try {
+      return await _service.fetchRedeemHistory(firebaseUid);
+    } catch (_) {
+      return []; // Trả về danh sách rỗng khi có lỗi
+    }
+  }
 }

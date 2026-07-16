@@ -1,35 +1,59 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../providers/reward_provider.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../data/models/reward.dart';
 
 class RewardShopScreen extends ConsumerStatefulWidget {
-  final int currentCoins;
+  final int? currentCoins;
 
-  const RewardShopScreen({
-    super.key,
-    required this.currentCoins,
-  });
+  const RewardShopScreen({super.key, this.currentCoins});
 
   @override
   ConsumerState<RewardShopScreen> createState() => _RewardShopScreenState();
 }
 
-class _RewardShopScreenState extends ConsumerState<RewardShopScreen> with SingleTickerProviderStateMixin {
+class _RewardShopScreenState extends ConsumerState<RewardShopScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  int? _localCoins;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    Future.microtask(() => ref.read(rewardProvider.notifier).loadRewards());
+    _tabController.addListener(_handleTabSelection);
+
+    // Chỉ sử dụng widget.currentCoins nếu nó lớn hơn 0, 
+    // nếu không hãy để AuthProvider tự đồng bộ từ Backend
+    if (widget.currentCoins != null && widget.currentCoins! > 0) {
+      _localCoins = widget.currentCoins;
+    }
+
+    Future.microtask(() {
+      ref.read(rewardProvider.notifier).loadRewards();
+      // Chủ động gọi đồng bộ xu khi vào màn hình shop
+      ref.read(authProvider.notifier).syncUserCoins();
+    });
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_handleTabSelection);
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _handleTabSelection() {
+    if (_tabController.index == 1) {
+      final authState = ref.read(authProvider);
+      final String firebaseUid = authState.user?.uid ?? '';
+      if (firebaseUid.isNotEmpty) {
+        ref.read(rewardProvider.notifier).loadHistory(firebaseUid);
+      }
+    }
   }
 
   void _redeemItem(BuildContext context, String firebaseUid, dynamic reward) {
@@ -37,32 +61,47 @@ class _RewardShopScreenState extends ConsumerState<RewardShopScreen> with Single
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.card_giftcard, color: Color(0xFFFF6B35), size: 28),
-            SizedBox(width: 12),
-            Text('Xác nhận đổi thưởng'),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF6B35).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.card_giftcard, color: Color(0xFFFF6B35), size: 24),
+            ),
+            const SizedBox(width: 12),
+            const Text('Xác nhận đổi', style: TextStyle(fontWeight: FontWeight.bold)),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Bạn có muốn đổi: ${reward.name}?'),
+            const Text('Bạn có chắc chắn muốn đổi phần thưởng này?', style: TextStyle(color: Colors.grey)),
+            const SizedBox(height: 16),
+            Text(reward.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: Colors.amber.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.amber.withOpacity(0.3)),
               ),
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.monetization_on, color: Colors.amber),
+                  const Icon(Icons.monetization_on, color: Colors.amber, size: 20),
                   const SizedBox(width: 8),
                   Text(
                     '${reward.cost} xu',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.amber),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange,
+                    ),
                   ),
                 ],
               ),
@@ -72,71 +111,87 @@ class _RewardShopScreenState extends ConsumerState<RewardShopScreen> with Single
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
+            child: Text('Để sau', style: TextStyle(color: Colors.grey[600])),
           ),
           ElevatedButton(
             onPressed: () async {
-              // Chặn lại nếu UID bị trống nhằm tránh làm crash Backend Spring Boot
-              if (firebaseUid.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Không tìm thấy thông tin đăng nhập (UID trống). Không thể đổi quà!'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-                return;
-              }
-
+              if (firebaseUid.isEmpty) return;
               Navigator.pop(context);
 
               final result = await ref
                   .read(rewardProvider.notifier)
                   .redeemReward(firebaseUid, reward.id);
 
-              if (mounted) {
-                if (result != null) {
-                  _showSuccessDialog(reward.name, reward.cost, result.remainingCoin);
-                } else {
-                  final error = ref.read(rewardProvider).errorMessage ?? 'Đổi quà thất bại';
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(error), backgroundColor: Colors.red),
-                  );
-                }
+              if (mounted && result != null) {
+                setState(() => _localCoins = result.remainingCoin);
+                _showSuccessDialog(reward.name, result.remainingCoin);
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF6B35)),
-            child: const Text('Xác nhận'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF6B35),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: 0,
+            ),
+            child: const Text('Xác nhận đổi'),
           ),
         ],
       ),
     );
   }
 
-  void _showSuccessDialog(String name, int cost, int remainingCoin) {
+  void _showSuccessDialog(String name, int remainingCoin) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), shape: BoxShape.circle),
-              child: const Icon(Icons.check_circle, color: Colors.green, size: 48),
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                color: Colors.green,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.check, color: Colors.white, size: 40),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Đổi quà thành công!',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Bạn đã đổi thành công: $name',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.grey),
             ),
             const SizedBox(height: 16),
-            const Text('Đổi thưởng thành công!', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text('Bạn đã nhận được gói $name thành công.', textAlign: TextAlign.center),
-            const SizedBox(height: 8),
-            Text('Số dư còn lại: $remainingCoin xu', style: const TextStyle(fontSize: 13, color: Colors.grey)),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E88E5)),
-              child: const Text('Đóng'),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                'Số dư còn lại: $remainingCoin xu',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1E88E5),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: const Text('Tuyệt vời'),
+              ),
             ),
           ],
         ),
@@ -149,37 +204,40 @@ class _RewardShopScreenState extends ConsumerState<RewardShopScreen> with Single
     final rewardState = ref.watch(rewardProvider);
     final authState = ref.watch(authProvider);
 
-    // Lấy chuỗi gốc Firebase UID từ hệ thống AuthState
-    // LƯU Ý: Nếu chạy thử nghiệm chưa Login, hãy thay '' bằng 1 UID thật đang có trong DB của bạn để test.
-    // Ví dụ: final String firebaseUid = authState.user?.uid ?? 'abc123xyz';
-    final String firebaseUid = 'firebase001';
-
-    // In ra màn hình console để kiểm tra giá trị thực tại thời điểm build UI
-    debugPrint("DEBUG CURRENT FIREBASE UID: '$firebaseUid'");
-
-    final liveCoins = widget.currentCoins;
+    // Lấy số dư từ AuthProvider nếu chưa đổi quà, lấy từ _localCoins sau khi đổi
+    // Xử lý null-safety cho môi trường Web
+    final int displayCoins = (_localCoins ?? (authState.coin as dynamic)) ?? 0;
+    final String firebaseUid = authState.user?.uid ?? '';
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text('Đổi thưởng', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+        title: const Text(
+          'Đổi thưởng',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
         centerTitle: true,
         backgroundColor: const Color(0xFF1E88E5),
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => context.pop(),
-        ),
         actions: [
           Container(
-            margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
+            margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(20),
+            ),
             child: Row(
               children: [
                 const Icon(Icons.monetization_on, color: Colors.amber, size: 18),
                 const SizedBox(width: 4),
-                Text('$liveCoins', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(
+                  '$displayCoins',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
               ],
             ),
           ),
@@ -188,139 +246,260 @@ class _RewardShopScreenState extends ConsumerState<RewardShopScreen> with Single
           controller: _tabController,
           indicatorColor: Colors.white,
           indicatorWeight: 3,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold),
           tabs: const [
-            Tab(text: 'Cửa hàng quà'),
-            Tab(text: 'Lịch sử nhận'),
+            Tab(text: 'Cửa hàng'),
+            Tab(text: 'Lịch sử'),
           ],
         ),
       ),
       body: rewardState.isLoading
           ? const Center(child: CircularProgressIndicator())
           : TabBarView(
-        controller: _tabController,
-        children: [
-          _buildShopList(rewardState.rewards, firebaseUid, liveCoins),
-          _buildHistoryDummyList(),
-        ],
-      ),
+              controller: _tabController,
+              children: [
+                _buildShopList(rewardState.rewards, firebaseUid, displayCoins),
+                _buildHistoryList(rewardState.history),
+              ],
+            ),
     );
   }
 
-  Widget _buildShopList(List<dynamic> rewards, String firebaseUid, int currentCoins) {
+  Widget _buildShopList(
+    List<dynamic> rewards,
+    String firebaseUid,
+    int currentCoins,
+  ) {
     if (rewards.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.shopping_bag_outlined, size: 80, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text('Chưa có vật phẩm nào được bày bán', style: TextStyle(color: Colors.grey[600], fontSize: 16)),
-          ],
-        ),
-      );
+      return _buildEmptyState('Hiện chưa có quà tặng nào trong cửa hàng.');
     }
 
-    return ListView.builder(
+    return GridView.builder(
       padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 0.75,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+      ),
       itemCount: rewards.length,
       itemBuilder: (context, index) {
         final reward = rewards[index];
-        final bool isAffordable = currentCoins >= reward.cost;
+        final bool canAfford = currentCoins >= reward.cost;
 
         return Container(
-          margin: const EdgeInsets.only(bottom: 16),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
-              BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2))
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
             ],
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Container(
-                  width: 55,
-                  height: 55,
-                  decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
-                  child: const Icon(Icons.card_giftcard, color: Color(0xFF1E88E5), size: 28),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(reward.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      const SizedBox(height: 4),
-                      Text(reward.description, style: TextStyle(fontSize: 12, color: Colors.grey[600]), maxLines: 2, overflow: TextOverflow.ellipsis),
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
-                        child: Text('🎁 Giảm ${reward.discountAmount}đ', style: const TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.w500)),
-                      ),
-                    ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E88E5).withOpacity(0.05),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      Icons.card_giftcard,
+                      size: 60,
+                      color: const Color(0xFF1E88E5).withOpacity(0.5),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
+              ),
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: isAffordable ? Colors.amber.withOpacity(0.2) : Colors.grey.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(15),
+                    Text(
+                      reward.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.monetization_on, size: 14, color: Colors.amber),
-                          const SizedBox(width: 2),
-                          Text('${reward.cost}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: isAffordable ? Colors.amber[800] : Colors.grey)),
-                        ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      reward.description,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
                       ),
                     ),
                     const SizedBox(height: 8),
-                    SizedBox(
-                      width: 70,
-                      height: 32,
-                      child: ElevatedButton(
-                        onPressed: () => _redeemItem(context, firebaseUid, reward),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: isAffordable ? const Color(0xFFFF6B35) : Colors.grey[400],
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.zero,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.monetization_on,
+                          color: Colors.amber,
+                          size: 16,
                         ),
-                        child: Text(isAffordable ? 'Đổi' : 'Thiếu', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${reward.cost}',
+                          style: const TextStyle(
+                            color: Colors.orange,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: canAfford
+                            ? () => _redeemItem(context, firebaseUid, reward)
+                            : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: canAfford
+                              ? const Color(0xFF1E88E5)
+                              : Colors.grey[300],
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: Text(
+                          canAfford ? 'Đổi ngay' : 'Thiếu xu',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },
     );
   }
 
-  Widget _buildHistoryDummyList() {
+  Widget _buildHistoryList(List<dynamic> history) {
+    if (history.isEmpty) {
+      return _buildEmptyState('Bạn chưa đổi phần thưởng nào.');
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: history.length,
+      itemBuilder: (context, index) {
+        final item = history[index];
+        final bool isUsed = item.isUsed;
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.all(12),
+            leading: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: (isUsed ? Colors.grey : const Color(0xFF1E88E5)).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isUsed ? Icons.check_circle_outline : Icons.card_giftcard,
+                color: isUsed ? Colors.grey : const Color(0xFF1E88E5),
+              ),
+            ),
+            title: Text(
+              item.rewardName,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                decoration: isUsed ? TextDecoration.lineThrough : null,
+              ),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.vpn_key_outlined, size: 14, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Mã: ${item.voucherCode}',
+                      style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.bold),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.copy, size: 14),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: item.voucherCode));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Đã sao chép mã voucher'), duration: Duration(seconds: 1)),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                Text(
+                  isUsed ? 'Đã sử dụng' : 'Có hiệu lực',
+                  style: TextStyle(
+                    color: isUsed ? Colors.grey : Colors.green,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            trailing: isUsed
+                ? null
+                : const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEmptyState(String message) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.history, size: 80, color: Colors.grey[400]),
+          Icon(Icons.inventory_2_outlined, size: 80, color: Colors.grey[300]),
           const SizedBox(height: 16),
-          Text('Tính năng lịch sử đổi đang được đồng bộ...', style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+          Text(
+            message,
+            style: TextStyle(color: Colors.grey[600], fontSize: 16),
+          ),
         ],
       ),
     );

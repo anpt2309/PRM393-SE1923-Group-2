@@ -20,11 +20,11 @@ class StreakService {
     final response = await http.post(uri).timeout(const Duration(seconds: 8));
 
     if (response.statusCode == 200) {
+      // Sửa chỗ này: Decode trực tiếp, không kiểm tra key 'data' nữa
       final decodedData = json.decode(utf8.decode(response.bodyBytes));
-      if (decodedData is Map<String, dynamic> && decodedData.containsKey('data')) {
-        return DailyCheckinResponse.fromJson(decodedData['data']);
-      }
+      return DailyCheckinResponse.fromJson(decodedData);
     }
+
     throw Exception('Lỗi hệ thống khi điểm danh: ${response.statusCode}');
   }
 }

@@ -21,4 +21,9 @@ public class UserController {
         return userService.registerFirebase(request);
     }
 
+    @GetMapping("/profile/{firebaseUid}")
+    public User getUserProfile(@PathVariable String firebaseUid) {
+        return userService.getUserByFirebaseUid(firebaseUid);
+    }
+
 }

@@ -1,11 +1,15 @@
 import 'dart:async';
+import 'dart:convert'; // Thêm để decode JSON
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http; // Thêm để gọi API Backend
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/repositories/auth_repository.dart';
+import '../data/services/auth_service.dart'; // Thêm để lấy baseUrl
 import '../data/models/auth_exception.dart';
 
 enum AuthStatus { idle, loading, success, error }
@@ -17,12 +21,13 @@ enum AuthStatus { idle, loading, success, error }
 class AuthState {
   final AuthStatus status;
   final String? errorMessage;
-  final String? errorCode; // Thêm errorCode
+  final String? errorCode;
   final User? user;
   final String? lastSimulatedOtp;
   final int avatarTimestamp;
   final String? firestorePhotoUrl;
   final String? firestoreDisplayName;
+  final int? coin; // Chuyển sang nullable để an toàn khi Hot Reload trên Web
 
   const AuthState({
     this.status = AuthStatus.idle,
@@ -33,6 +38,7 @@ class AuthState {
     this.avatarTimestamp = 0,
     this.firestorePhotoUrl,
     this.firestoreDisplayName,
+    this.coin = 0,
   });
 
   bool get isLoading => status == AuthStatus.loading;
@@ -52,6 +58,7 @@ class AuthState {
     int? avatarTimestamp,
     String? firestorePhotoUrl,
     String? firestoreDisplayName,
+    int? coin,
   }) {
     return AuthState(
       status: status ?? this.status,
@@ -62,6 +69,7 @@ class AuthState {
       avatarTimestamp: avatarTimestamp ?? this.avatarTimestamp,
       firestorePhotoUrl: firestorePhotoUrl ?? this.firestorePhotoUrl,
       firestoreDisplayName: firestoreDisplayName ?? this.firestoreDisplayName,
+      coin: coin ?? this.coin,
     );
   }
 }
@@ -96,6 +104,11 @@ class AuthNotifier extends AutoDisposeNotifier<AuthState> {
     // Thiết lập listener để đồng bộ hóa với Firebase Auth và Firestore
     _setupListeners(repo);
 
+    // Tự động đồng bộ xu từ Backend khi khởi tạo nếu đã login
+    if (initialState.user != null) {
+      Future.microtask(() => syncUserCoins());
+    }
+
     ref.onDispose(() {
       _userSub?.cancel();
       _profileSub?.cancel();
@@ -113,9 +126,9 @@ class AuthNotifier extends AutoDisposeNotifier<AuthState> {
         _profileSub?.cancel();
         // Chỉ reset status về idle nếu không đang trong quá trình xử lý quan trọng (như reset password)
         if (state.status != AuthStatus.success && state.status != AuthStatus.error) {
-          state = state.copyWith(user: null, firestorePhotoUrl: null, status: AuthStatus.idle);
+          state = state.copyWith(user: null, firestorePhotoUrl: null, coin: 0, status: AuthStatus.idle);
         } else {
-          state = state.copyWith(user: null, firestorePhotoUrl: null);
+          state = state.copyWith(user: null, firestorePhotoUrl: null, coin: 0);
         }
       }
     });
@@ -133,10 +146,46 @@ class AuthNotifier extends AutoDisposeNotifier<AuthState> {
         state = state.copyWith(
           firestorePhotoUrl: data?['photoUrl'],
           firestoreDisplayName: data?['name'],
+          // Nếu Firestore có coin thì lấy, không thì giữ nguyên state hiện tại
+          coin: data?['coin'] ?? state.coin,
           avatarTimestamp: DateTime.now().millisecondsSinceEpoch,
         );
       }
     });
+    // Đồng bộ xu từ MySQL khi có thay đổi profile
+    syncUserCoins();
+  }
+
+  /// Đồng bộ xu từ MySQL Backend
+  /// Đồng bộ xu từ MySQL Backend
+  Future<void> syncUserCoins() async {
+    final user = state.user;
+    if (user == null) return;
+
+    try {
+      final uri = Uri.parse('${AuthService.baseUrl}/api/users/profile/${user.uid}');
+      final response = await http.get(uri).timeout(const Duration(seconds: 5));
+
+      if (response.statusCode == 200) {
+        final decodedData = json.decode(utf8.decode(response.bodyBytes));
+        
+        // Kiểm tra cấu trúc JSON có bọc trong key "data" hay không
+        int? coinFromBackend;
+        if (decodedData is Map<String, dynamic>) {
+          if (decodedData.containsKey('data')) {
+            coinFromBackend = decodedData['data']['coin'] as int?;
+          } else {
+            coinFromBackend = decodedData['coin'] as int?;
+          }
+        }
+
+        if (coinFromBackend != null) {
+          state = state.copyWith(coin: coinFromBackend);
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) print('Không thể đồng bộ xu từ backend: $e');
+    }
   }
 
   /// Đăng nhập bằng email và mật khẩu

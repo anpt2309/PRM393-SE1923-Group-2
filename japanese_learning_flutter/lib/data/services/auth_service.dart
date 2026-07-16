@@ -56,6 +56,20 @@ class AuthService {
     final random = Random();
     return (100000 + random.nextInt(900000)).toString();
   }
+  Future<Map<String, dynamic>?> fetchUserProfile(String firebaseUid) async {
+    try {
+      final uri = Uri.parse('$baseUrl/api/users/profile/$firebaseUid');
+      final response = await http.get(uri).timeout(const Duration(seconds: 8));
+      if (response.statusCode == 200) {
+        final decodedData = json.decode(utf8.decode(response.bodyBytes));
+        return decodedData['data'];
+      }
+    } catch (e) {
+      if (kDebugMode) print('Lỗi lấy profile từ Backend: $e');
+    }
+    return null;
+  }
+
   Future<void> registerFirebaseUser(User user) async {
     final uri = Uri.parse('$baseUrl/api/users/register-firebase');
 

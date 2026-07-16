@@ -1,6 +1,7 @@
 package com.example.japanese_learning.features.reward_exchange.services;
 
 import com.example.japanese_learning.dto.request.RedeemRequest;
+import com.example.japanese_learning.dto.response.RedeemHistoryResponse;
 import com.example.japanese_learning.dto.response.RedeemResponse;
 import com.example.japanese_learning.dto.response.RewardResponse;
 import com.example.japanese_learning.entity.account.User;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -30,68 +32,85 @@ public class RewardService {
     private final CoinTransactionRepository coinTransactionRepository;
 
     @Transactional
-    // ─── THAY ĐỔI Ở ĐÂY ─────────────────────────────────────────
-    // Đổi kiểu tham số đầu vào từ Long userId thành String firebaseUid để khớp với Firebase
     public RedeemResponse redeemReward(String firebaseUid, RedeemRequest request) {
 
-        // 1. Kiểm tra User tồn tại hay không thông qua Firebase UID thay vì ID tự tăng
+        // 1. Tìm kiếm User bằng Firebase UID
         User user = userRewardRepository.findByFirebaseUid(firebaseUid)
                 .orElseThrow(() -> new RuntimeException("Người dùng không tồn tại với UID: " + firebaseUid));
-        // ─────────────────────────────────────────────────────────────
 
-        // 2. Kiểm tra phần thưởng (Reward) tồn tại hay không
+        // 2. Kiểm tra phần thưởng tồn tại
         Reward reward = rewardRepository.findById(request.getRewardId())
                 .orElseThrow(() -> new RuntimeException("Phần thưởng không tồn tại"));
 
-        // 3. Kiểm tra ví xu của User có đủ để trả giá (cost) của phần thưởng không
+        // 3. Kiểm tra số dư xu
         if (user.getCoin() < reward.getCost()) {
             throw new RuntimeException("Số dư xu của bạn không đủ để đổi phần thưởng này");
         }
 
-        // 4. Khấu trừ xu của User
+        // 4. Khấu trừ xu và lưu User[cite: 23]
         int remainingCoin = user.getCoin() - reward.getCost();
         user.setCoin(remainingCoin);
         userRewardRepository.save(user);
 
-        // 5. Ghi nhận nhật ký dòng tiền (CoinTransaction)
+        // 5. Ghi nhận nhật ký giao dịch xu[cite: 23]
         CoinTransaction transaction = new CoinTransaction();
         transaction.setUser(user);
         transaction.setAmount(reward.getCost());
-        // Giả sử Enum TransactionType của bạn có giá trị DEDUCT hoặc OUT cho giao dịch trừ tiền
         transaction.setType(TransactionType.DEDUCT);
         transaction.setReason("Đổi phần thưởng: " + reward.getName());
         coinTransactionRepository.save(transaction);
 
-        // 6. Cấp phát Voucher / Tạo bản ghi đổi thưởng (RewardRedemption)
+        // 6. Tạo mã Voucher ngẫu nhiên và lưu lịch sử đổi thưởng[cite: 17, 23]
         RewardRedemption redemption = new RewardRedemption();
         redemption.setUser(user);
         redemption.setReward(reward);
-        redemption.setIsUsed(false); // Mặc định là mới đổi, chưa mang đi thanh toán mua đề
-        redemption.setPurchase(null); // Chưa liên kết tới đơn mua nào cả
+        redemption.setIsUsed(false);
+        redemption.setRedeemedAt(LocalDateTime.now());
+        String generatedCode = "V-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        redemption.setVoucherCode(generatedCode);
+
         RewardRedemption savedRedemption = rewardRedemptionRepository.save(redemption);
 
-        // 7. Trả kết quả thành công về cho Controller
+        // 7. Trả về phản hồi chi tiết[cite: 15, 23]
         return RedeemResponse.builder()
                 .redemptionId(savedRedemption.getId())
                 .rewardName(reward.getName())
                 .spentCoin(reward.getCost())
                 .remainingCoin(remainingCoin)
-                .redeemedAt(LocalDateTime.now()) // Thời điểm xử lý thành công
+                .redeemedAt(LocalDateTime.now())
                 .build();
     }
 
-    // List rewards
     public List<RewardResponse> getAllRewards() {
-        List<Reward> rewards = rewardRepository.findAll();
-
-        // Map từ Entity sang DTO rút gọn
-        return rewards.stream()
+        return rewardRepository.findAll().stream()
                 .map(reward -> RewardResponse.builder()
                         .id(reward.getId())
                         .name(reward.getName())
                         .cost(reward.getCost())
                         .discountAmount(reward.getDiscountAmount())
                         .description(reward.getDescription())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    // lịch sử đổi quà
+    public List<RedeemHistoryResponse> getRedeemHistory(String firebaseUid) {
+        // 1. Tìm user theo Firebase UID
+        User user = userRewardRepository.findByFirebaseUid(firebaseUid)
+                .orElseThrow(() -> new RuntimeException("Người dùng không tồn tại với UID: " + firebaseUid));
+
+        // 2. Lấy danh sách đổi thưởng đã lưu trong DB
+        List<RewardRedemption> redemptions = rewardRedemptionRepository.findByUserOrderByIdDesc(user);
+
+        // 3. Map sang danh sách DTO để trả về
+        return redemptions.stream()
+                .map(redemption -> RedeemHistoryResponse.builder()
+                        .id(redemption.getId())
+                        .rewardName(redemption.getReward().getName())
+                        .cost(redemption.getReward().getCost())
+                        .voucherCode(redemption.getVoucherCode())
+                        .isUsed(redemption.getIsUsed())
+                        .redeemedAt(redemption.getRedeemedAt()) // DB tự sinh qua trigger/default value
                         .build())
                 .collect(Collectors.toList());
     }
