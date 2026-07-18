@@ -274,11 +274,133 @@ class _RewardShopScreenState extends ConsumerState<RewardShopScreen>
       return _buildEmptyState('Hiện chưa có quà tặng nào trong cửa hàng.');
     }
 
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final bool isMobile = screenWidth < 600;
+
+    // Sử dụng ListView cho màn hình lớn để hiển thị 1 cột trải dài
+    if (!isMobile) {
+      return ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: rewards.length,
+        itemBuilder: (context, index) {
+          final reward = rewards[index];
+          final bool canAfford = currentCoins >= reward.cost;
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: IntrinsicHeight(
+              child: Row(
+                children: [
+                  Container(
+                    width: 180, // Tăng nhẹ kích thước ảnh cho cân đối với màn hình rộng
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E88E5).withOpacity(0.05),
+                      borderRadius: const BorderRadius.horizontal(
+                        left: Radius.circular(20),
+                      ),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        Icons.card_giftcard,
+                        size: 60,
+                        color: const Color(0xFF1E88E5).withOpacity(0.5),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            reward.name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            reward.description,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.monetization_on, color: Colors.amber, size: 22),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '${reward.cost}',
+                                    style: const TextStyle(
+                                      color: Colors.orange,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 20,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(
+                                width: 140,
+                                child: ElevatedButton(
+                                  onPressed: canAfford
+                                      ? () => _redeemItem(context, firebaseUid, reward)
+                                      : null,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: canAfford
+                                        ? const Color(0xFF1E88E5)
+                                        : Colors.grey[300],
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    canAfford ? 'Đổi ngay' : 'Thiếu xu',
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    // GridView cho màn hình Mobile (< 600px) - 2 cột
     return GridView.builder(
       padding: const EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 0.75,
+        childAspectRatio: 0.72,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
       ),
@@ -314,7 +436,7 @@ class _RewardShopScreenState extends ConsumerState<RewardShopScreen>
                   child: Center(
                     child: Icon(
                       Icons.card_giftcard,
-                      size: 60,
+                      size: 50,
                       color: const Color(0xFF1E88E5).withOpacity(0.5),
                     ),
                   ),
@@ -331,7 +453,7 @@ class _RewardShopScreenState extends ConsumerState<RewardShopScreen>
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 15,
+                        fontSize: 14,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -340,30 +462,26 @@ class _RewardShopScreenState extends ConsumerState<RewardShopScreen>
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 11,
                         color: Colors.grey[600],
                       ),
                     ),
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        const Icon(
-                          Icons.monetization_on,
-                          color: Colors.amber,
-                          size: 16,
-                        ),
+                        const Icon(Icons.monetization_on, color: Colors.amber, size: 14),
                         const SizedBox(width: 4),
                         Text(
                           '${reward.cost}',
                           style: const TextStyle(
                             color: Colors.orange,
                             fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                            fontSize: 14,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -382,10 +500,10 @@ class _RewardShopScreenState extends ConsumerState<RewardShopScreen>
                           ),
                         ),
                         child: Text(
-                          canAfford ? 'Đổi ngay' : 'Thiếu xu',
+                          canAfford ? 'Đổi ngay' : 'Thiếu',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 13,
+                            fontSize: 12,
                           ),
                         ),
                       ),

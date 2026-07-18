@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -61,5 +62,16 @@ public class DailyCheckinService {
                 .currentCoin(user.getCoin())
                 .isNewCheckinToday(isNewCheckinToday)
                 .build();
+    }
+
+    @Transactional(readOnly = true)
+    public List<LocalDate> getCheckinHistory(String firebaseUid) {
+        User user = userCheckinRepository.findByFirebaseUid(firebaseUid)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với UID: " + firebaseUid));
+
+        return checkinRepository.findByUser(user)
+                .stream()
+                .map(UserDailyCheckin::getCheckinDate)
+                .toList();
     }
 }

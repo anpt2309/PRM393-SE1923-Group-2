@@ -27,4 +27,16 @@ class StreakService {
 
     throw Exception('Lỗi hệ thống khi điểm danh: ${response.statusCode}');
   }
+
+  Future<List<DateTime>> fetchCheckinHistory(String firebaseUid) async {
+    final uri = Uri.parse('$baseUrl/api/v1/daily-checkin/$firebaseUid/history');
+    final response = await http.get(uri).timeout(const Duration(seconds: 8));
+
+    if (response.statusCode == 200) {
+      final List<dynamic> decodedList = json.decode(utf8.decode(response.bodyBytes));
+      // Map mảng String ["2026-07-16", "2026-07-17"] sang List<DateTime>
+      return decodedList.map((dateStr) => DateTime.parse(dateStr as String)).toList();
+    }
+    throw Exception('Không thể tải lịch sử điểm danh');
+  }
 }

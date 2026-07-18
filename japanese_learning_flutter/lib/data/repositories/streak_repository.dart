@@ -13,4 +13,11 @@ class StreakRepository {
       return null; // Trả về null khi có lỗi xảy ra thay vì rethrow
     }
   }
+  Future<List<DateTime>?> getCheckinHistory(String firebaseUid) async {
+    try {
+      return await _service.fetchCheckinHistory(firebaseUid);
+    } catch (_) {
+      return null;
+    }
+  }
 }

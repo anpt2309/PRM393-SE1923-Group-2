@@ -60,7 +60,7 @@ public class RewardService {
         transaction.setReason("Đổi phần thưởng: " + reward.getName());
         coinTransactionRepository.save(transaction);
 
-        // 6. Tạo mã Voucher ngẫu nhiên và lưu lịch sử đổi thưởng[cite: 17, 23]
+        // 6. Tạo mã Voucher ngẫu nhiên và lưu lịch sử đổi thưởng
         RewardRedemption redemption = new RewardRedemption();
         redemption.setUser(user);
         redemption.setReward(reward);

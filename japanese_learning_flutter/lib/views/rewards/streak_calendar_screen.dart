@@ -342,23 +342,20 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
       monthDays.add({'isEmpty': true});
     }
 
-    // Lấy ngày đăng nhập gần nhất từ API phục vụ vẽ lịch hiển thị nhanh
-    final serverLastLogin = state.checkinData?.lastLogin;
-
     for (int day = 1; day <= daysInMonth; day++) {
       final date = DateTime(_currentMonth.year, _currentMonth.month, day);
       final isToday = date.year == DateTime.now().year && date.month == DateTime.now().month && date.day == DateTime.now().day;
 
-      // So sánh trực tiếp với trường ngày đăng nhập lấy từ API Backend trả về
-      final bool isLoggedInOnServerDate = serverLastLogin != null &&
-          serverLastLogin.year == date.year &&
-          serverLastLogin.month == date.month &&
-          serverLastLogin.day == date.day;
+      // ĐỒNG BỘ MỚI: Kiểm tra xem ngày hiện tại trên ô lịch có nằm trong list ngày Backend trả về không
+      bool hasCheckedInThisDay = state.checkinHistory.any((historyDate) =>
+      historyDate.year == date.year &&
+          historyDate.month == date.month &&
+          historyDate.day == date.day);
 
       monthDays.add({
         'isEmpty': false,
         'day': day,
-        'isLoggedIn': isLoggedInOnServerDate,
+        'isLoggedIn': hasCheckedInThisDay, // Gán trạng thái sáng đèn dựa trên lịch sử thật
         'isToday': isToday,
         'date': date,
       });
@@ -454,25 +451,38 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
         child: Container(
           height: 50,
           decoration: BoxDecoration(
-            color: isLoggedIn ? const Color(0xFF1E88E5).withAlpha(38) : Colors.transparent,
+            // Nếu thuộc streak thì cho màu nền xanh đậm hơn hoặc cam tùy ý
+            color: isLoggedIn
+                ? (isToday ? const Color(0xFFFF6B35).withOpacity(0.2) : const Color(0xFF1E88E5).withOpacity(0.2))
+                : Colors.transparent,
             shape: BoxShape.circle,
-            border: isToday ? Border.all(color: const Color(0xFF1E88E5), width: 2) : null,
+            // Viền cho ngày hiện tại
+            border: isToday
+                ? Border.all(color: const Color(0xFFFF6B35), width: 2)
+                : (isLoggedIn ? Border.all(color: const Color(0xFF1E88E5).withOpacity(0.3), width: 1) : null),
           ),
           child: Stack(
             alignment: Alignment.center,
             children: [
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    day.toString(),
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
-                      color: isLoggedIn ? const Color(0xFF1E88E5) : (isToday ? const Color(0xFF1E88E5) : Colors.grey[700]),
-                    ),
+              if (isLoggedIn)
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: Icon(
+                    Icons.local_fire_department,
+                    size: 12,
+                    color: isToday ? const Color(0xFFFF6B35) : const Color(0xFF1E88E5),
                   ),
-                ],
+                ),
+              Text(
+                day.toString(),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: (isToday || isLoggedIn) ? FontWeight.bold : FontWeight.normal,
+                  color: isToday
+                      ? const Color(0xFFFF6B35)
+                      : (isLoggedIn ? const Color(0xFF1E88E5) : Colors.grey[700]),
+                ),
               ),
             ],
           ),

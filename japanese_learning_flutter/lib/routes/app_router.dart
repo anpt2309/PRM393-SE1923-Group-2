@@ -336,11 +336,15 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.paymentHistory,
-      builder: (context, state) {
-        final coins = state.extra is int ? state.extra as int : 0;
-        return PaymentHistoryScreen(currentCoins: coins);
-      },
+      builder: (context, state) => const PaymentHistoryScreen(),
     ),
+    // GoRoute(
+    //   path: AppRoutes.paymentHistory,
+    //   builder: (context, state) {
+    //     final coins = state.extra is int ? state.extra as int : 0;
+    //     return PaymentHistoryScreen(currentCoins: coins);
+    //   },
+    // ),
     GoRoute(
       path: AppRoutes.search,
       builder: (context, state) => const JapaneseSearchScreen(),
