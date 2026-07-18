@@ -3,10 +3,13 @@ package com.example.japanese_learning.features.payment.controllers;
 import com.example.japanese_learning.dto.request.PaymentCheckoutRequest;
 import com.example.japanese_learning.dto.request.SePayWebhookRequest;
 import com.example.japanese_learning.dto.response.PaymentCheckoutResponse;
+import com.example.japanese_learning.dto.response.PaymentHistoryResponse;
 import com.example.japanese_learning.features.payment.services.PaymentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @CrossOrigin(origins = "*")
 @RestController
@@ -43,6 +46,17 @@ public class PaymentController {
             return ResponseEntity.ok("Đã hủy đơn hàng và hoàn lại các ưu đãi thành công");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Không thể hủy đơn: " + e.getMessage());
+        }
+    }
+
+    // API lấy lịch sử giao dịch thanh toán tiền thực tế (SePay) theo Firebase UID
+    @GetMapping("/payment-history")
+    public ResponseEntity<?> getPaymentHistory(@RequestParam String firebaseUid) {
+        try {
+            return ResponseEntity.ok(paymentService.getPaymentHistoryByFirebaseUid(firebaseUid));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body("Lỗi hệ thống: " + e.getMessage());
         }
     }
 }

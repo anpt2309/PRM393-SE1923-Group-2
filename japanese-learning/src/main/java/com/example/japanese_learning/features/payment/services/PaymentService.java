@@ -4,6 +4,7 @@ package com.example.japanese_learning.features.payment.services;
 import com.example.japanese_learning.dto.request.PaymentCheckoutRequest;
 import com.example.japanese_learning.dto.request.SePayWebhookRequest;
 import com.example.japanese_learning.dto.response.PaymentCheckoutResponse;
+import com.example.japanese_learning.dto.response.PaymentHistoryResponse;
 import com.example.japanese_learning.entity.account.User;
 import com.example.japanese_learning.entity.exam.Exam;
 import com.example.japanese_learning.entity.rewards.Payment;
@@ -17,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -28,8 +30,8 @@ public class PaymentService {
     private final RewardRedemptionPaymentRepository redemptionRepository;
 
     // Cấu hình Ngân hàng tích hợp qua SePay
-    private static final String SEPAY_BANK_BIN = "230904"; // Mã BIN Ngân hàng (Ví dụ: 970416 là ACB)
-    private static final String SEPAY_ACC_NO = "0968034541";  // Số tài khoản ngân hàng nhận tiền của bạn
+    private static final String SEPAY_BANK_BIN = ""; // Mã BIN Ngân hàng (Ví dụ: 970416 là ACB)
+    private static final String SEPAY_ACC_NO = "";  // Số tài khoản ngân hàng nhận tiền của bạn
 
     /**
      * Luồng tạo đơn mua, áp mã, trừ coin trực tiếp trên bảng User và tạo link QR Code thanh toán
@@ -189,5 +191,31 @@ public class PaymentService {
             user.setCoin(user.getCoin() + coinRefundAmount); // Hoàn coin trực tiếp vào trường coin của User
             userRepository.save(user);
         }
+    }
+
+    /**
+     * Lấy danh sách lịch sử giao dịch thanh toán tiền qua ngân hàng dựa trên Firebase UID
+     */
+    @Transactional
+    public List<PaymentHistoryResponse> getPaymentHistoryByFirebaseUid(String firebaseUid) {
+        // 1. Kiểm tra sự tồn tại của User qua Firebase UID
+        userRepository.findByFirebaseUid(firebaseUid)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy thông tin người dùng với mã Firebase UID cung cấp"));
+
+        // 2. Lấy danh sách giao dịch thanh toán ngân hàng
+        List<Payment> payments = paymentRepository.findByPurchaseUserFirebaseUidOrderByIdDesc(firebaseUid);
+
+        // 3. Map từ Entity sang DTO Response để trả về cho Flutter
+        return payments.stream().map(payment -> PaymentHistoryResponse.builder()
+                .paymentId(payment.getId())
+                .paymentCode(payment.getPaymentCode())
+                .transactionId(payment.getTransactionId())
+                .examTitle(payment.getPurchase().getExam().getTitle()) // Lấy tên đề thi thông qua liên kết purchase -> exam
+                .amount(payment.getAmount())
+                .status(payment.getStatus().name())
+                .paidAt(payment.getPaidAt())
+                .createdAt(payment.getCreatedAt())
+                .build()
+        ).toList();
     }
 }
