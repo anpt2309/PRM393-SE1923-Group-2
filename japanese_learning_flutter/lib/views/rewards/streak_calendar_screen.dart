@@ -1,11 +1,10 @@
 // lib/views/rewards/streak_calendar_screen.dart
-// Đã được cấu hình đồng bộ trực tiếp với dữ liệu API Backend thông qua streakProvider thực tế.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/streak_provider.dart';
-import '../../providers/auth_provider.dart'; // Import để lấy thông tin firebaseUid hiện tại
+import '../../providers/auth_provider.dart';
 
 class StreakCalendarScreen extends ConsumerStatefulWidget {
   const StreakCalendarScreen({super.key});
@@ -20,13 +19,53 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
   @override
   void initState() {
     super.initState();
-    // Tự động gọi API điểm danh khi vừa mở màn hình dựa trên tài khoản đang đăng nhập
     Future.microtask(() {
       final authState = ref.read(authProvider);
       if (authState.user != null) {
+        // Tải cả lịch sử điểm danh khi vào màn hình để hiển thị chuỗi
+        ref.read(streakProvider.notifier).fetchCheckinHistory(authState.user!.uid);
         ref.read(streakProvider.notifier).performDailyCheckin(authState.user!.uid);
       }
     });
+  }
+
+  // ── Thuật toán xác định khoảng ngày thuộc Chuỗi Đăng Nhập ─────────────────
+
+  /// Tìm ngày bắt đầu của chuỗi đăng nhập liên tiếp hiện tại từ danh sách lịch sử
+  DateTime? _getStreakStartDate(List<DateTime> history, int streakDays) {
+    if (history.isEmpty || streakDays <= 0) return null;
+
+    // Chuẩn hóa danh sách lịch sử về dạng chỉ có ngày/tháng/năm để so sánh chính xác
+    final historyDates = history.map((d) => DateTime(d.year, d.month, d.day)).toSet();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    // Xác định mốc để tính ngược: Nếu hôm nay chưa checkin nhưng hôm qua có thì tính từ hôm qua
+    DateTime anchorDate = historyDates.contains(today) ? today : yesterday;
+
+    if (!historyDates.contains(anchorDate)) {
+      // Nếu cả hôm nay và hôm qua đều không có trong lịch sử thì lấy ngày mới nhất có trong DB
+      if (history.isNotEmpty) {
+        final latest = history.reduce((a, b) => a.isAfter(b) ? a : b);
+        anchorDate = DateTime(latest.year, latest.month, latest.day);
+      } else {
+        return null;
+      }
+    }
+
+    // Đếm ngược ngược về quá khứ để tìm ngày bị đứt chuỗi
+    DateTime current = anchorDate;
+    int count = 0;
+
+    // Vòng lặp an toàn tối đa bằng số ngày streak hoặc chiều dài lịch sử
+    while (historyDates.contains(current) && count < streakDays) {
+      current = current.subtract(const Duration(days: 1));
+      count++;
+    }
+
+    // Ngày bắt đầu chuỗi chính là ngày sau ngày bị đứt chuỗi gần nhất
+    return current.add(const Duration(days: 1));
   }
 
   // ── Helpers UI ────────────────────────────────────────────────
@@ -38,7 +77,6 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
       return;
     }
 
-    // Gọi API xử lý điểm danh từ Provider
     ref.read(streakProvider.notifier).performDailyCheckin(authState.user!.uid).then((_) {
       final state = ref.read(streakProvider);
       if (state.error != null) {
@@ -68,7 +106,7 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
             Container(
               width: 80, height: 80,
               decoration: BoxDecoration(
-                color: Colors.amber.withAlpha(51), // Thay thế với các thiết lập alpha tiêu chuẩn
+                color: Colors.amber.withAlpha(51),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.card_giftcard, color: Colors.amber, size: 48),
@@ -234,9 +272,7 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            streakDays <= 1
-                ? 'Bạn đã đăng nhập $streakDays ngày liên tiếp'
-                : 'Bạn đã đăng nhập $streakDays ngày liên tiếp',
+            'Bạn đã đăng nhập $streakDays ngày liên tiếp',
             style: const TextStyle(color: Colors.white70, fontSize: 14),
           ),
           const SizedBox(height: 16),
@@ -265,7 +301,6 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
   }
 
   Widget _buildDailyRewardButton(StreakState state) {
-    // Nếu hôm nay mới checkin thành công từ API, nút bấm sẽ bị vô hiệu hóa (disabled)
     final hasClaimedToday = !(state.checkinData?.isNewCheckinToday ?? true);
 
     return Container(
@@ -305,27 +340,7 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
           const SizedBox(width: 12),
           Expanded(child: _buildStatCard(icon: Icons.emoji_events, value: '$streakDays', label: 'Streak cao nhất', color: Colors.amber)),
           const SizedBox(width: 12),
-          Expanded(child: _buildStatCard(icon: Icons.calendar_today, value: state.checkinData != null ? '1' : '0', label: 'Tổng số ngày', color: const Color(0xFF1E88E5))),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard({required IconData icon, required String value, required String label, required Color color}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.grey.withAlpha(25), blurRadius: 8, offset: const Offset(0, 2))],
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 28),
-          const SizedBox(height: 8),
-          Text(value, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color)),
-          const SizedBox(height: 4),
-          Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[600]), textAlign: TextAlign.center),
+          Expanded(child: _buildStatCard(icon: Icons.calendar_today, value: '${state.checkinHistory.length}', label: 'Tổng số ngày', color: const Color(0xFF1E88E5))),
         ],
       ),
     );
@@ -337,6 +352,13 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
     final firstWeekday = firstDayOfMonth.weekday;
     int startOffset = firstWeekday - 1;
 
+    // Lấy ngày bắt đầu và ngày kết thúc chuỗi hiện tại
+    final streakDays = state.checkinData?.streakDays ?? 0;
+    final streakStartDate = _getStreakStartDate(state.checkinHistory, streakDays);
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
     List<Map<String, dynamic>> monthDays = [];
     for (int i = 0; i < startOffset; i++) {
       monthDays.add({'isEmpty': true});
@@ -344,18 +366,29 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
 
     for (int day = 1; day <= daysInMonth; day++) {
       final date = DateTime(_currentMonth.year, _currentMonth.month, day);
-      final isToday = date.year == DateTime.now().year && date.month == DateTime.now().month && date.day == DateTime.now().day;
+      final isToday = date.year == today.year && date.month == today.month && date.day == today.day;
 
-      // ĐỒNG BỘ MỚI: Kiểm tra xem ngày hiện tại trên ô lịch có nằm trong list ngày Backend trả về không
+      // 1. Kiểm tra ngày này có lịch sử điểm danh không
       bool hasCheckedInThisDay = state.checkinHistory.any((historyDate) =>
       historyDate.year == date.year &&
           historyDate.month == date.month &&
           historyDate.day == date.day);
 
+      // 2. HIGHLIGHT LOGIC: Xác định ngày này có nằm TRONG CHUỖI LIÊN TIẾP từ Start đến Hôm nay hay không
+      bool isInCurrentStreakRange = false;
+      if (streakStartDate != null) {
+        final compareDate = DateTime(date.year, date.month, date.day);
+        // Nằm trong khoảng [streakStartDate -> ngày neo chuỗi kết thúc] và phải có dữ liệu checkin thực tế
+        isInCurrentStreakRange = hasCheckedInThisDay &&
+            (compareDate.isAtSameMomentAs(streakStartDate) || compareDate.isAfter(streakStartDate)) &&
+            (compareDate.isAtSameMomentAs(today) || compareDate.isBefore(today));
+      }
+
       monthDays.add({
         'isEmpty': false,
         'day': day,
-        'isLoggedIn': hasCheckedInThisDay, // Gán trạng thái sáng đèn dựa trên lịch sử thật
+        'isLoggedIn': hasCheckedInThisDay,
+        'isInStreak': isInCurrentStreakRange, // Gửi flag này xuống cell để highlight rực rỡ hơn
         'isToday': isToday,
         'date': date,
       });
@@ -410,6 +443,7 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
                   return _buildDayCell(
                     day: dayData['day'],
                     isLoggedIn: dayData['isLoggedIn'] ?? false,
+                    isInStreak: dayData['isInStreak'] ?? false, // Truyền trạng thái chuỗi
                     isToday: dayData['isToday'] ?? false,
                   );
                 }),
@@ -420,9 +454,13 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              Container(width: 12, height: 12, decoration: const BoxDecoration(color: Color(0xFFFF6B35), shape: BoxShape.circle)),
+              const SizedBox(width: 4),
+              const Text('Đang trong Chuỗi', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
+              const SizedBox(width: 16),
               Container(width: 12, height: 12, decoration: const BoxDecoration(color: Color(0xFF1E88E5), shape: BoxShape.circle)),
               const SizedBox(width: 4),
-              const Text('Đã đăng nhập', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              const Text('Ngày đã điểm danh cũ', style: TextStyle(fontSize: 12, color: Colors.grey)),
             ],
           ),
         ],
@@ -444,22 +482,37 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
     return Expanded(child: Container(padding: const EdgeInsets.all(4), child: const SizedBox(height: 50)));
   }
 
-  Widget _buildDayCell({required int day, required bool isLoggedIn, required bool isToday}) {
+  Widget _buildDayCell({required int day, required bool isLoggedIn, required bool isInStreak, required bool isToday}) {
+    // Ưu tiên hiển thị màu cam rực rỡ (ngọn lửa) nếu ngày đó thuộc Chuỗi streak hiện tại
+    Color cellBgColor = Colors.transparent;
+    Border? cellBorder;
+    Color textColor = Colors.grey[700]!;
+
+    if (isInStreak) {
+      cellBgColor = const Color(0xFFFF6B35).withOpacity(0.2);
+      cellBorder = Border.all(color: const Color(0xFFFF6B35).withOpacity(0.4), width: 1);
+      textColor = const Color(0xFFFF6B35);
+    } else if (isLoggedIn) {
+      // Ngày điểm danh cũ, lẻ tẻ không nằm trong chuỗi hiện tại thì giữ màu xanh dương nhẹ
+      cellBgColor = const Color(0xFF1E88E5).withOpacity(0.15);
+      cellBorder = Border.all(color: const Color(0xFF1E88E5).withOpacity(0.3), width: 1);
+      textColor = const Color(0xFF1E88E5);
+    }
+
+    if (isToday) {
+      cellBorder = Border.all(color: const Color(0xFFFF6B35), width: 2.5);
+      textColor = const Color(0xFFFF6B35);
+    }
+
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(4),
         child: Container(
           height: 50,
           decoration: BoxDecoration(
-            // Nếu thuộc streak thì cho màu nền xanh đậm hơn hoặc cam tùy ý
-            color: isLoggedIn
-                ? (isToday ? const Color(0xFFFF6B35).withOpacity(0.2) : const Color(0xFF1E88E5).withOpacity(0.2))
-                : Colors.transparent,
+            color: cellBgColor,
             shape: BoxShape.circle,
-            // Viền cho ngày hiện tại
-            border: isToday
-                ? Border.all(color: const Color(0xFFFF6B35), width: 2)
-                : (isLoggedIn ? Border.all(color: const Color(0xFF1E88E5).withOpacity(0.3), width: 1) : null),
+            border: cellBorder,
           ),
           child: Stack(
             alignment: Alignment.center,
@@ -470,23 +523,42 @@ class _StreakCalendarScreenState extends ConsumerState<StreakCalendarScreen> {
                   right: 4,
                   child: Icon(
                     Icons.local_fire_department,
-                    size: 12,
-                    color: isToday ? const Color(0xFFFF6B35) : const Color(0xFF1E88E5),
+                    size: 13,
+                    color: isInStreak ? const Color(0xFFFF6B35) : const Color(0xFF1E88E5),
                   ),
                 ),
               Text(
                 day.toString(),
                 style: TextStyle(
                   fontSize: 16,
-                  fontWeight: (isToday || isLoggedIn) ? FontWeight.bold : FontWeight.normal,
-                  color: isToday
-                      ? const Color(0xFFFF6B35)
-                      : (isLoggedIn ? const Color(0xFF1E88E5) : Colors.grey[700]),
+                  fontWeight: (isToday || isInStreak || isLoggedIn) ? FontWeight.bold : FontWeight.normal,
+                  color: textColor,
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // ── Các Widget Khác Giữ Nguyên ─────────────────────────────────
+  Widget _buildStatCard({required IconData icon, required String value, required String label, required Color color}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.grey.withAlpha(25), blurRadius: 8, offset: const Offset(0, 2))],
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 28),
+          const SizedBox(height: 8),
+          Text(value, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color)),
+          const SizedBox(height: 4),
+          Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[600]), textAlign: TextAlign.center),
+        ],
       ),
     );
   }
