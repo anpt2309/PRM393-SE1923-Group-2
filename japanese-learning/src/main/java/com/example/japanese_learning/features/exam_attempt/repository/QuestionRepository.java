@@ -27,14 +27,17 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
                 "join q.option op " +
                 "join q.part pa " +
                 "where pa.exam.id =:examId " +
-                "and pa.orderIndex =:partId ")
+                "and pa.id =:partId ")
         List<QuestionProjection> getQuestionForBJT(@Param("examId") Long examId,
                                                    @Param("partId") Integer partId);
 
         // Kiểm tra logic nếu đã qua phần 1 r thì không thể sửa câu hỏi phần 1 nữa
-        // Tư tưởng: kiểm tra danh sách câu hỏi có nằm trong part hiện tại không
+        // Tư tưởng: kiểm tra danh sách câu hỏi có nằm trong partId hiện tại không => Fixing
+        // Bug 1: join q.part.id pa => Sai JPQL
+        // Bug 2: and pa.id != partId => Thiếu :partId
         @Query("select count(q) from Question q " +
+                "join q.part pa " +
                 "where q.id in :questionId " +
-                "and q.part.id !=partId  ")
-        Long countQuestionInvalid(Integer partId,List<Long> questionId);
+                "and pa.id != :partId ")
+        Long countQuestionInvalid(Long partId,List<Long> questionId);
 }

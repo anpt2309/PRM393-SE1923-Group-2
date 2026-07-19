@@ -9,4 +9,7 @@ import java.util.List;
 @Repository
 public interface ExamPartRepository extends JpaRepository<ExamPart, Long> {
     List<ExamPart> findByExamId(Long examId);
+
+    // Sắp xếp Order_Index tăng dần đảm bảo thứ tự các part không lẫn lộn
+    List<ExamPart> findByExamIdOrderByOrderIndexAsc(Long examId);
 }

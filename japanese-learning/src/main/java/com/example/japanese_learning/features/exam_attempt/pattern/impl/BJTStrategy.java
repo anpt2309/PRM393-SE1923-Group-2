@@ -17,10 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Component
@@ -35,12 +32,27 @@ public class BJTStrategy implements ExamStrategy {
 
     @Override
     public List<QuestionProjection> getQuestion(Long examId) {
-// Lấy câu hỏi theo partId
-// Nếu chưa có phần thi trong examAttempt => part = 0, đã có part = nextPart
-//        ExamAttempt attempt = examAttemptRepository.findById();
-//        return questionRepository.getQuestionForBJT(exam.getId(), exam.getId());
         return null;
     }
+
+
+//    @Override
+//    public List<QuestionProjection> getQuestion(ExamAttempt attempt) {
+//        Long examId = attempt.getExam().getId();
+//        ExamPart currentPart = attempt.getCurrentPart();
+//
+//        if (Objects.isNull(currentPart)) {
+//            List<ExamPart> parts = partRepository.findByExamIdOrderByOrderIndexAsc(examId);
+//            if (parts.isEmpty()) {
+//                throw new RuntimeException("Bài thi không có phần thi nào");
+//            }
+//            currentPart = parts.get(0);
+//            attempt.setCurrentPart(currentPart);
+//            examAttemptRepository.save(attempt);
+//        }
+//
+//        return questionRepository.getQuestionForBJT(examId, currentPart.getId().intValue());
+//    }
 
     @Override
     public String examType() {
@@ -49,13 +61,17 @@ public class BJTStrategy implements ExamStrategy {
 
     @Override
     public ExamAttempt startExam(User existingUser, Exam existingExam) {
-        // Lấy ra part thi đầu tiên của bài thi
-        Integer examPart = existingExam.getExamParts().get(0).getOrderIndex();
-
         ExamAttempt attempt = ExamAttempt.builder()
                 .startTime(LocalDateTime.now())
                 .status(AttemptStatus.STARTED)
-                .currentPart(partRepository.getReferenceById(examPart.longValue()))
+                .currentPart(null)
+                // Bug 1: set thêm total score khi part đầu tiên được nộp
+                // examAttempt.getTotalScore() = 0 thay vì Null
+                // double score = countCorrect * 12 + examAttempt.getTotalScore();
+                .totalScore(0.0)
+                // Bug 2: set thêm correctAnswersCount khi part đầu tiên được nộp
+                // examAttempt.getCorrectAnswersCount() = 0 thay vì Null
+                .correctAnswersCount(0L)
                 .exam(existingExam)
                 .user(existingUser)
                 .build();
@@ -67,7 +83,9 @@ public class BJTStrategy implements ExamStrategy {
     public void autoSaveAnswer(ExamAttempt examAttempt, List<AnswerRequest> request) {
         // Kiểm tra logic nếu đã qua phần 1 r thì không thể sửa câu hỏi phần 1 nữa
         // Tư tưởng: kiểm tra các câu hỏi mà người dùng gửi về có nằm trong phần thi htai không
-        Integer currenPartId = examAttempt.getCurrentPart().getOrderIndex();
+
+        // BUG 1: lấy nhầm examAttempt.getCurrentPart().getOrderIndex();
+        Long currenPartId = examAttempt.getCurrentPart().getId();
         List<Long> questionId = request.stream()
                 .map(x -> x.getQuestionId())
                 .collect(Collectors.toList());
@@ -110,8 +128,9 @@ public class BJTStrategy implements ExamStrategy {
     // Logic lưu theo các part khi kết thúc các phần
     @Override
     public ExamAttempt submitExam(ExamAttempt examAttempt, Exam existingExam) {
-        Integer currenPartId = examAttempt.getCurrentPart().getOrderIndex();
+        Long currenPartId = examAttempt.getCurrentPart().getId();
         // Lấy questionID && optionId student chọn trong partId
+
         List<StudentAnswerProjection> studentAnswer = studentAnswerRepository.findByAttempt_IdAndPartId(examAttempt.getId(), currenPartId);
         Map<Long, Long> answerMap = new HashMap<>();
         for (StudentAnswerProjection stu : studentAnswer) {
@@ -136,12 +155,32 @@ public class BJTStrategy implements ExamStrategy {
         // Tính số câu hỏi trong đề - mỗi câu đúng 12 điểm
         // Lấy điểm đã có theo part cũ + số câu đúng part mới
         double score = countCorrect * 12 + examAttempt.getTotalScore();
-        // Double totalScoreOldPart = examAttempt.getTotalScore();
-        examAttempt.setSubmitTime(LocalDateTime.now());
-        examAttempt.setStatus(AttemptStatus.SUBMITTED);
-        examAttempt.setCurrentPart(null);
         examAttempt.setTotalScore(score);
-        examAttempt.setCorrectAnswersCount(countCorrect);
+        // Cập nhật lại số câu hỏi đúng
+        Long correctAnswersCount = examAttempt.getCorrectAnswersCount() + countCorrect;
+        examAttempt.setCorrectAnswersCount(correctAnswersCount);
+
+        // Tìm part tiếp theo
+        List<ExamPart> parts = partRepository.findByExamIdOrderByOrderIndexAsc(existingExam.getId());
+        int currentIndex = -1;
+        for (int i = 0; i < parts.size(); i++) {
+            if (parts.get(i).getId().equals(currenPartId)) {
+                currentIndex = i;
+                break;
+            }
+        }
+
+        if (currentIndex != -1 && currentIndex + 1 < parts.size()) {
+            // Còn part tiếp theo
+            examAttempt.setCurrentPart(parts.get(currentIndex + 1));
+            examAttempt.setStatus(AttemptStatus.STARTED);
+        } else {
+            // Đã làm xong part cuối cùng
+            examAttempt.setCurrentPart(null);
+            examAttempt.setStatus(AttemptStatus.SUBMITTED);
+            examAttempt.setSubmitTime(LocalDateTime.now());
+        }
+        
         return examAttempt;
     }
 }
