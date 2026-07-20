@@ -2,6 +2,7 @@ package com.example.japanese_learning.features.payment.controllers;
 
 import com.example.japanese_learning.dto.request.PaymentCheckoutRequest;
 import com.example.japanese_learning.dto.request.SePayWebhookRequest;
+import com.example.japanese_learning.dto.response.ApiResponse;
 import com.example.japanese_learning.dto.response.PaymentCheckoutResponse;
 import com.example.japanese_learning.dto.response.PaymentHistoryResponse;
 import com.example.japanese_learning.features.payment.services.PaymentService;
@@ -20,18 +21,28 @@ public class PaymentController {
 
     // API phục vụ màn hình Frontend ấn nút "Thanh toán"
     @PostMapping("/checkout")
-    public ResponseEntity<PaymentCheckoutResponse> checkout(
+    public ResponseEntity<ApiResponse<PaymentCheckoutResponse>> checkout(
             @RequestParam Long userId,
             @RequestBody PaymentCheckoutRequest request) {
-        return ResponseEntity.ok(paymentService.createCheckout(userId, request));
+
+        PaymentCheckoutResponse response = paymentService.createCheckout(userId, request);
+
+        ApiResponse<PaymentCheckoutResponse> apiResponse = ApiResponse.<PaymentCheckoutResponse>builder()
+                .id(200)
+                .message("Khởi tạo thông tin thanh toán thành công!")
+                .data(response)
+                .build();
+
+        return ResponseEntity.ok(apiResponse);
     }
 
-    // API nhận Webhook từ SePay truyền tín hiệu về hệ thống
-    // Đường dẫn webhook đăng ký trên Dashboard SePay: https://yourdomain.com/api/payments/webhook
+    // API nhận Webhook từ SePay truyền tín hiệu về hệ thống (Giữ nguyên chuỗi String phản hồi cho SePay)
     @PostMapping("/webhook")
-    public ResponseEntity<String> handleSePayWebhook(@RequestBody SePayWebhookRequest request) {
+    public ResponseEntity<String> handleSePayWebhook(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @RequestBody SePayWebhookRequest request) {
         try {
-            paymentService.processSePayWebhook(request);
+            paymentService.processSePayWebhook(authorizationHeader, request);
             return ResponseEntity.ok("Xử lý Webhook giao dịch SePay thành công");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Lỗi xử lý webhook: " + e.getMessage());
@@ -40,23 +51,44 @@ public class PaymentController {
 
     // API hỗ trợ hủy đơn thủ công hoặc kích hoạt hủy tự động khi quá thời gian
     @PostMapping("/purchase/{id}/cancel")
-    public ResponseEntity<String> cancelPurchase(@PathVariable Long id, @RequestParam String reason) {
+    public ResponseEntity<ApiResponse<Void>> cancelPurchase(@PathVariable Long id, @RequestParam String reason) {
         try {
             paymentService.cancelOrExpirePurchase(id, reason);
-            return ResponseEntity.ok("Đã hủy đơn hàng và hoàn lại các ưu đãi thành công");
+
+            ApiResponse<Void> apiResponse = ApiResponse.<Void>builder()
+                    .id(200)
+                    .message("Đã hủy đơn hàng và hoàn lại các ưu đãi thành công")
+                    .build();
+
+            return ResponseEntity.ok(apiResponse);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Không thể hủy đơn: " + e.getMessage());
+            ApiResponse<Void> errorResponse = ApiResponse.<Void>builder()
+                    .id(400)
+                    .message("Không thể hủy đơn: " + e.getMessage())
+                    .build();
+            return ResponseEntity.badRequest().body(errorResponse);
         }
     }
 
     // API lấy lịch sử giao dịch thanh toán tiền thực tế (SePay) theo Firebase UID
     @GetMapping("/payment-history")
-    public ResponseEntity<?> getPaymentHistory(@RequestParam String firebaseUid) {
+    public ResponseEntity<ApiResponse<List<PaymentHistoryResponse>>> getPaymentHistory(@RequestParam String firebaseUid) {
         try {
-            return ResponseEntity.ok(paymentService.getPaymentHistoryByFirebaseUid(firebaseUid));
+            List<PaymentHistoryResponse> history = paymentService.getPaymentHistoryByFirebaseUid(firebaseUid);
+
+            ApiResponse<List<PaymentHistoryResponse>> apiResponse = ApiResponse.<List<PaymentHistoryResponse>>builder()
+                    .id(200)
+                    .message("Tải lịch sử thanh toán thành công!")
+                    .data(history)
+                    .build();
+
+            return ResponseEntity.ok(apiResponse);
         } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.badRequest().body("Lỗi hệ thống: " + e.getMessage());
+            ApiResponse<List<PaymentHistoryResponse>> errorResponse = ApiResponse.<List<PaymentHistoryResponse>>builder()
+                    .id(400)
+                    .message("Lỗi hệ thống: " + e.getMessage())
+                    .build();
+            return ResponseEntity.badRequest().body(errorResponse);
         }
     }
 }

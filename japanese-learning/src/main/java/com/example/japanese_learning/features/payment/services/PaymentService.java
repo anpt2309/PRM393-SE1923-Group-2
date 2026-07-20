@@ -1,6 +1,5 @@
 package com.example.japanese_learning.features.payment.services;
 
-
 import com.example.japanese_learning.dto.request.PaymentCheckoutRequest;
 import com.example.japanese_learning.dto.request.SePayWebhookRequest;
 import com.example.japanese_learning.dto.response.PaymentCheckoutResponse;
@@ -15,6 +14,7 @@ import com.example.japanese_learning.enums.PurchaseStatus;
 import com.example.japanese_learning.features.payment.repositories.*;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -29,13 +29,16 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final RewardRedemptionPaymentRepository redemptionRepository;
 
-    // Cấu hình Ngân hàng tích hợp qua SePay
-    private static final String SEPAY_BANK_BIN = ""; // Mã BIN Ngân hàng (Ví dụ: 970416 là ACB)
-    private static final String SEPAY_ACC_NO = "";  // Số tài khoản ngân hàng nhận tiền của bạn
+    // Đọc các giá trị bảo mật từ file application.properties
+    @Value("${sepay.bank.bin}")
+    private String sepayBankBin;
 
-    /**
-     * Luồng tạo đơn mua, áp mã, trừ coin trực tiếp trên bảng User và tạo link QR Code thanh toán
-     */
+    @Value("${sepay.acc.no}")
+    private String sepayAccNo;
+
+    @Value("${sepay.webhook.token}")
+    private String sepayWebhookToken;
+
     @Transactional
     public PaymentCheckoutResponse createCheckout(Long userId, PaymentCheckoutRequest request) {
         User user = userRepository.findById(userId)
@@ -43,12 +46,10 @@ public class PaymentService {
         Exam exam = examRepository.findById(request.getExamId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đề thi yêu cầu"));
 
-        // 1. Lấy giá tiền từ Exam và chuyển đổi an toàn từ Double sang Integer
         int originalPrice = exam.getPrice() != null ? exam.getPrice().intValue() : 0;
         int discountFromVoucher = 0;
         int discountFromCoin = 0;
 
-        // 2. Kiểm tra và áp dụng mã Voucher (RewardRedemption)
         RewardRedemption validRedemption = null;
         if (request.getVoucherCode() != null && !request.getVoucherCode().trim().isEmpty()) {
             validRedemption = redemptionRepository.findByVoucherCodeAndUserAndIsUsedFalse(request.getVoucherCode(), user)
@@ -58,15 +59,12 @@ public class PaymentService {
 
         int priceAfterVoucher = Math.max(0, originalPrice - discountFromVoucher);
 
-        // 3. Kiểm tra và áp dụng giảm giá bằng Coin (1 Coin = 1 VND) - Trừ trực tiếp trên User
         if (Boolean.TRUE.equals(request.getUseCoin()) && user.getCoin() > 0) {
-            // Số coin sử dụng không vượt quá số dư tài khoản và số tiền còn lại sau khi áp voucher
             discountFromCoin = Math.min(user.getCoin(), priceAfterVoucher);
         }
 
         int finalPrice = Math.max(0, priceAfterVoucher - discountFromCoin);
 
-        // 4. Khởi tạo bản ghi Đơn mua (Purchase) trạng thái PENDING
         Purchase purchase = new Purchase();
         purchase.setUser(user);
         purchase.setExam(exam);
@@ -76,27 +74,23 @@ public class PaymentService {
         purchase.setFinalPrice(finalPrice);
         purchase = purchaseRepository.save(purchase);
 
-        // 5. Cập nhật trạng thái và liên kết Voucher vào đơn mua vừa tạo
         if (validRedemption != null) {
             validRedemption.setIsUsed(true);
             validRedemption.setPurchase(purchase);
             redemptionRepository.save(validRedemption);
         }
 
-        // 6. Thực hiện khấu trừ số dư Coin trực tiếp trong entity User
         if (discountFromCoin > 0) {
             user.setCoin(user.getCoin() - discountFromCoin);
             userRepository.save(user);
         }
 
-        // 7. Sinh mã thanh toán duy nhất gắn liền với thời gian hệ thống (Ví dụ: JL123456)
-        String paymentCode = "JL" + (System.currentTimeMillis() % 1000000);
+        // Sinh mã ngẫu nhiên duy nhất dựa vào NanoTime để tránh trùng lặp
+        String paymentCode = "JL" + (System.nanoTime() % 1000000);
 
-        // Tạo link VietQR động theo cấu trúc nhận diện tự động hóa của SePay
         String qrUrl = String.format("https://img.vietqr.io/image/%s-%s-compact2.png?amount=%d&addInfo=%s",
-                SEPAY_BANK_BIN, SEPAY_ACC_NO, finalPrice, paymentCode);
+                sepayBankBin, sepayAccNo, finalPrice, paymentCode);
 
-        // 8. Lưu thông tin giao dịch Thanh toán (Payment)
         Payment payment = new Payment();
         payment.setPurchase(purchase);
         payment.setPaymentCode(paymentCode);
@@ -104,7 +98,7 @@ public class PaymentService {
         payment.setQrUrl(qrUrl);
         payment.setQrContent(paymentCode);
         payment.setStatus(PaymentStatus.PENDING);
-        payment.setExpiredAt(LocalDateTime.now().plusMinutes(15)); // Đặt thời gian hết hạn mã là 15 phút
+        payment.setExpiredAt(LocalDateTime.now().plusMinutes(15));
         paymentRepository.save(payment);
 
         return PaymentCheckoutResponse.builder()
@@ -118,43 +112,53 @@ public class PaymentService {
                 .build();
     }
 
-    /**
-     * Nhận dữ liệu tự động bắn về từ Webhook SePay khi phát hiện tài khoản nhận được tiền
-     */
     @Transactional
-    public void processSePayWebhook(SePayWebhookRequest webhookData) {
-        String content = webhookData.getContent();
-
-        // Tìm kiếm bản ghi thanh toán PENDING chứa mã thanh toán khớp với nội dung chuyển khoản ngân hàng
-        Payment payment = paymentRepository.findAll().stream()
-                .filter(p -> p.getStatus() == PaymentStatus.PENDING && content.contains(p.getPaymentCode()))
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy giao dịch thanh toán trùng khớp với nội dung chuyển khoản"));
-
-        // Kiểm tra số tiền chuyển khoản của khách hàng có chính xác từng đồng không
-        if (!webhookData.getTransferAmount().equals(payment.getAmount())) {
-            throw new RuntimeException("Số tiền chuyển khoản thực tế không khớp với giá trị cần thanh toán của hệ thống!");
+    public void processSePayWebhook(String authorizationHeader, SePayWebhookRequest webhookData) {
+        // 1. Kiểm tra Token bảo mật của SePay gửi kèm ở Header để tránh hacker tự gửi request giả lập
+        if (authorizationHeader == null || !authorizationHeader.equals("Apikey " + sepayWebhookToken)) {
+            throw new RuntimeException("Xác thực Webhook thất bại! Token không hợp lệ.");
         }
 
-        // Cập nhật trạng thái Thanh toán thành công (SUCCESS)
+        String content = webhookData.getContent();
+        if (content == null) {
+            throw new RuntimeException("Nội dung chuyển khoản trống.");
+        }
+
+        // 2. TỐI ƯU: Tìm kiếm trực tiếp bằng câu truy vấn SQL thông qua repository thay vì .findAll() bừa bãi
+        Payment payment = paymentRepository.findByPaymentCode(extractPaymentCode(content))
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy mã giao dịch khớp với nội dung chuyển khoản"));
+
+        if (payment.getStatus() != PaymentStatus.PENDING) {
+            throw new RuntimeException("Giao dịch này đã được xử lý từ trước.");
+        }
+
+        if (!webhookData.getTransferAmount().equals(payment.getAmount())) {
+            throw new RuntimeException("Số tiền chuyển khoản thực tế không khớp với hệ thống!");
+        }
+
+        // 3. Cập nhật trạng thái Payment và lưu vết thông tin đối soát ngân hàng
         payment.setStatus(PaymentStatus.SUCCESS);
         payment.setPaidAt(LocalDateTime.now());
         paymentRepository.save(payment);
 
-        // Kích hoạt trạng thái đơn mua APPROVED để mở khóa quyền làm bài cho User
         Purchase purchase = payment.getPurchase();
         purchase.setStatus(PurchaseStatus.APPROVED);
         purchaseRepository.save(purchase);
 
-        // Tăng chỉ số số lượng người dùng đã sở hữu đề thi này
         Exam exam = purchase.getExam();
         exam.setUserCount((exam.getUserCount() != null ? exam.getUserCount() : 0) + 1);
         examRepository.save(exam);
     }
 
-    /**
-     * Cơ chế xử lý hủy đơn/hoàn trả Voucher và hoàn trả trực tiếp Coin vào User khi đơn mua thất bại hoặc hết hạn
-     */
+    // Hàm bổ trợ bóc tách tìm chuỗi bắt đầu bằng JL từ nội dung tin nhắn của ngân hàng
+    private String extractPaymentCode(String content) {
+        int index = content.indexOf("JL");
+        if (index != -1 && content.length() >= index + 8) {
+            return content.substring(index, index + 8).replaceAll("[^a-zA-Z0-9]", "");
+        }
+        return content; // Dự phòng nếu chuỗi quá ngắn
+    }
+
     @Transactional
     public void cancelOrExpirePurchase(Long purchaseId, String reason) {
         Purchase purchase = purchaseRepository.findById(purchaseId)
@@ -164,11 +168,9 @@ public class PaymentService {
             throw new IllegalStateException("Đơn hàng hiện không ở trạng thái chờ xử lý, không thể thực hiện hủy đơn");
         }
 
-        // 1. Chuyển đổi trạng thái đơn mua sang REJECTED
         purchase.setStatus(PurchaseStatus.REJECTED);
         purchaseRepository.save(purchase);
 
-        // 2. Tìm kiếm thông qua RedemptionRepository để giải phóng Voucher nếu có sử dụng
         RewardRedemption redemption = redemptionRepository.findAll().stream()
                 .filter(r -> r.getPurchase() != null && r.getPurchase().getId().equals(purchaseId))
                 .findFirst()
@@ -180,7 +182,6 @@ public class PaymentService {
             redemptionRepository.save(redemption);
         }
 
-        // 3. Tính toán chính xác lượng Coin đã dùng từ giá trị gốc đơn hàng để hoàn trả trực tiếp cho User
         int originalPrice = purchase.getOriginalPrice();
         int discountFromVoucher = (redemption != null) ? redemption.getReward().getDiscountAmount() : 0;
         int priceAfterVoucher = Math.max(0, originalPrice - discountFromVoucher);
@@ -188,29 +189,23 @@ public class PaymentService {
 
         if (coinRefundAmount > 0) {
             User user = purchase.getUser();
-            user.setCoin(user.getCoin() + coinRefundAmount); // Hoàn coin trực tiếp vào trường coin của User
+            user.setCoin(user.getCoin() + coinRefundAmount);
             userRepository.save(user);
         }
     }
 
-    /**
-     * Lấy danh sách lịch sử giao dịch thanh toán tiền qua ngân hàng dựa trên Firebase UID
-     */
     @Transactional
     public List<PaymentHistoryResponse> getPaymentHistoryByFirebaseUid(String firebaseUid) {
-        // 1. Kiểm tra sự tồn tại của User qua Firebase UID
         userRepository.findByFirebaseUid(firebaseUid)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy thông tin người dùng với mã Firebase UID cung cấp"));
 
-        // 2. Lấy danh sách giao dịch thanh toán ngân hàng
         List<Payment> payments = paymentRepository.findByPurchaseUserFirebaseUidOrderByIdDesc(firebaseUid);
 
-        // 3. Map từ Entity sang DTO Response để trả về cho Flutter
         return payments.stream().map(payment -> PaymentHistoryResponse.builder()
                 .paymentId(payment.getId())
                 .paymentCode(payment.getPaymentCode())
                 .transactionId(payment.getTransactionId())
-                .examTitle(payment.getPurchase().getExam().getTitle()) // Lấy tên đề thi thông qua liên kết purchase -> exam
+                .examTitle(payment.getPurchase().getExam().getTitle())
                 .amount(payment.getAmount())
                 .status(payment.getStatus().name())
                 .paidAt(payment.getPaidAt())
