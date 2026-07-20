@@ -20,11 +20,18 @@ class PaymentHistoryService {
     final response = await http.get(uri).timeout(const Duration(seconds: 8));
 
     if (response.statusCode == 200) {
-      // Decode bằng UTF-8 theo chuẩn quy ước dự án để tránh lỗi font tiếng Việt/tiếng Nhật
       final decodedData = json.decode(utf8.decode(response.bodyBytes));
 
       if (decodedData is List) {
         return decodedData.map((item) => PaymentHistory.fromJson(item)).toList();
+      }
+
+      if (decodedData is Map<String, dynamic> && decodedData.containsKey('data')) {
+        final dataField = decodedData['data'];
+        if (dataField is List) {
+          return dataField.map((item) => PaymentHistory.fromJson(item)).toList();
+        }
+        return [];
       }
     }
     throw Exception('Không thể tải lịch sử thanh toán: ${response.statusCode}');

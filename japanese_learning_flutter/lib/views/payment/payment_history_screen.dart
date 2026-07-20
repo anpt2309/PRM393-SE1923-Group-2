@@ -167,14 +167,56 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> wit
         children: [
           paymentState.isLoading
               ? const Center(child: CircularProgressIndicator())
-              : _buildPaymentList(paymentState.items),
+              : paymentState.error != null
+                  ? _buildErrorView(paymentState.error!, () => ref.read(paymentHistoryProvider.notifier).loadPaymentHistory())
+                  : _buildPaymentList(paymentState.items),
           paymentState.isLoading
               ? const Center(child: CircularProgressIndicator())
-              : _buildPaymentList(paymentState.items.where((p) => p.status != 'SUCCESS').toList()),
+              : paymentState.error != null
+                  ? _buildErrorView(paymentState.error!, () => ref.read(paymentHistoryProvider.notifier).loadPaymentHistory())
+                  : _buildPaymentList(paymentState.items.where((p) => p.status != 'SUCCESS').toList()),
           coinState.isLoading
               ? const Center(child: CircularProgressIndicator())
-              : _buildCoinList(coinState.items),
+              : coinState.error != null
+                  ? _buildErrorView(coinState.error!, () => ref.read(coinTransactionProvider.notifier).loadCoinHistory())
+                  : _buildCoinList(coinState.items),
         ],
+      ),
+    );
+  }
+
+  Widget _buildErrorView(String message, VoidCallback onRetry) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 60, color: Colors.redAccent),
+            const SizedBox(height: 16),
+            Text(
+              'Đã xảy ra lỗi',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey[800]),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Thử lại'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1E88E5),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

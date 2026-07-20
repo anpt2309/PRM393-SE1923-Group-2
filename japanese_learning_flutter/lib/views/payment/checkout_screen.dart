@@ -124,7 +124,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
       final Map<String, dynamic> validVouchers = {
         'SAVE10': {'discount': 10, 'type': 'percent', 'name': 'Giảm 10%', 'minOrder': 0},
-        'SAVE50K': {'discount': 50000, 'type': 'fixed', 'name': 'Giảm 50.000đ', 'minOrder': 50000},
+        'SAVE40K': {'discount': 40000, 'type': 'fixed', 'name': 'Giảm 40.000đ', 'minOrder': 50000},
       };
 
       if (validVouchers.containsKey(code)) {

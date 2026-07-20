@@ -17,11 +17,11 @@ class CoinTransaction {
 
   factory CoinTransaction.fromJson(Map<String, dynamic> json) {
     return CoinTransaction(
-      id: json['id'] as int? ?? 0,
-      amount: json['amount'] as int? ?? 0,
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      amount: (json['amount'] as num?)?.toInt() ?? 0,
       type: json['type'] == 'DEDUCT' ? TransactionType.DEDUCT : TransactionType.ADD,
       reason: json['reason'] as String? ?? '',
-      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
+      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) : null,
     );
   }
 }

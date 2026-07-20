@@ -20,8 +20,17 @@ class CoinTransactionService {
 
     if (response.statusCode == 200) {
       final decodedData = json.decode(utf8.decode(response.bodyBytes));
+
       if (decodedData is List) {
         return decodedData.map((item) => CoinTransaction.fromJson(item)).toList();
+      }
+
+      if (decodedData is Map<String, dynamic> && decodedData.containsKey('data')) {
+        final dataField = decodedData['data'];
+        if (dataField is List) {
+          return dataField.map((item) => CoinTransaction.fromJson(item)).toList();
+        }
+        return [];
       }
     }
     throw Exception('Không thể tải lịch sử giao dịch coin: ${response.statusCode}');

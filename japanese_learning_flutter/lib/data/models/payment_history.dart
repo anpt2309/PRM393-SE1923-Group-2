@@ -21,14 +21,14 @@ class PaymentHistory {
 
   factory PaymentHistory.fromJson(Map<String, dynamic> json) {
     return PaymentHistory(
-      paymentId: json['paymentId'] as int? ?? 0,
+      paymentId: (json['paymentId'] as num?)?.toInt() ?? 0,
       paymentCode: json['paymentCode'] as String? ?? '',
       transactionId: json['transactionId'] as String? ?? '',
       examTitle: json['examTitle'] as String? ?? '',
-      amount: json['amount'] as int? ?? 0,
+      amount: (json['amount'] as num?)?.toInt() ?? 0,
       status: json['status'] as String? ?? 'PENDING',
-      paidAt: json['paidAt'] != null ? DateTime.parse(json['paidAt']) : null,
-      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
+      paidAt: json['paidAt'] != null ? DateTime.tryParse(json['paidAt'].toString()) : null,
+      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) : null,
     );
   }
 }
