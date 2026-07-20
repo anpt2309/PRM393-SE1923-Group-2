@@ -22,6 +22,7 @@ public class CoinTransaction {
     private Integer amount;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "type", columnDefinition = "VARCHAR(20)")
     private TransactionType type;
 
     private String reason;

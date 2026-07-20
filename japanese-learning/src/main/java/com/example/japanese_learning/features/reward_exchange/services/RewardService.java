@@ -1,6 +1,6 @@
 package com.example.japanese_learning.features.reward_exchange.services;
 
-import com.example.japanese_learning.dto.request.RedeemRequest;
+import com.example.japanese_learning.dto.request.RedeemRequests;
 import com.example.japanese_learning.dto.response.RedeemHistoryResponse;
 import com.example.japanese_learning.dto.response.RedeemResponse;
 import com.example.japanese_learning.dto.response.RewardResponse;
@@ -32,7 +32,7 @@ public class RewardService {
     private final CoinTransactionRepository coinTransactionRepository;
 
     @Transactional
-    public RedeemResponse redeemReward(String firebaseUid, RedeemRequest request) {
+    public RedeemResponse redeemReward(String firebaseUid, RedeemRequests request) {
 
         // 1. Tìm kiếm User bằng Firebase UID
         User user = userRewardRepository.findByFirebaseUid(firebaseUid)

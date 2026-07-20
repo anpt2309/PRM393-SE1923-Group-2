@@ -5,6 +5,6 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class RedeemRequest {
+public class RedeemRequests {
     private Long rewardId; // ID của phần thưởng muốn đổi
 }

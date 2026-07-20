@@ -1,6 +1,6 @@
 package com.example.japanese_learning.features.reward_exchange.controllers;
 
-import com.example.japanese_learning.dto.request.RedeemRequest;
+import com.example.japanese_learning.dto.request.RedeemRequests;
 import com.example.japanese_learning.dto.response.ApiResponse;
 import com.example.japanese_learning.dto.response.RedeemHistoryResponse;
 import com.example.japanese_learning.dto.response.RedeemResponse;
@@ -11,7 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-
+// RedeemRequest
 @CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/api/rewards")
@@ -27,7 +27,7 @@ public class RewardController {
             // Đổi từ `@RequestParam Long userId` sang `@RequestParam String firebaseUid` để nhận UID dạng chuỗi từ Flutter gửi lên
             @RequestParam String firebaseUid,
             // ─────────────────────────────────────────────────────────────
-            @RequestBody RedeemRequest request) {
+            @RequestBody RedeemRequests request) {
 
         // ─── THAY ĐỔI Ở ĐÂY ─────────────────────────────────────────
         // Truyền tham số firebaseUid vào hàm xử lý của service thay vì userId cũ
