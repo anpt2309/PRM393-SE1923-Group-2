@@ -194,7 +194,15 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
-                context.push('/payment/checkout');
+                // SỬA TẠI ĐÂY: Truyền Map extra chứa đúng dữ liệu ID thực tế sang màn hình Checkout
+                context.push(
+                  '/payment/checkout',
+                  extra: {
+                    'examId': widget.exam.id,
+                    'price': widget.exam.price,
+                    'currentCoins': 0,
+                  },
+                );
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: energeticOrange,
@@ -213,13 +221,11 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Determine level display from detail or fallback
     final hasLevel = _examDetail != null && _examDetail!.level.isNotEmpty;
     final String badgeText = hasLevel
         ? 'Loại: ${widget.exam.examType} • Cấp độ: ${_examDetail!.level} • ${widget.exam.difficulty}'
         : 'Loại: ${widget.exam.examType} • ${widget.exam.difficulty}';
 
-    // Get description from detail or fallback
     final String descriptionText = _examDetail != null ? _examDetail!.description : widget.exam.description;
 
     return Scaffold(
@@ -247,7 +253,6 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Difficulty/Level Badge & Price Row
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -281,7 +286,6 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Title
                   Text(
                     widget.exam.title,
                     style: const TextStyle(
@@ -293,7 +297,6 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Quick Stats Row
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     decoration: BoxDecoration(
@@ -314,7 +317,6 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Description Section
                   if (descriptionText.trim().isNotEmpty) ...[
                     const Text(
                       'Giới thiệu bài thi',
@@ -336,7 +338,6 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
                     const SizedBox(height: 24),
                   ],
 
-                  // Exam structure / Syllabus
                   const Text(
                     'Cấu trúc đề thi',
                     style: TextStyle(
@@ -372,19 +373,18 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
                       ),
                     )
                   else if (_examDetail == null || _examDetail!.parts.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Text(
-                        'Không có thông tin cấu trúc đề thi.',
-                        style: TextStyle(fontSize: 13, color: textLight),
-                      ),
-                    )
-                  else
-                    ..._examDetail!.parts.map((p) => _buildSectionItem(p.partName, 'Thời gian làm bài: ${p.partDuration} phút')),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Text(
+                          'Không có thông tin cấu trúc đề thi.',
+                          style: TextStyle(fontSize: 13, color: textLight),
+                        ),
+                      )
+                    else
+                      ..._examDetail!.parts.map((p) => _buildSectionItem(p.partName, 'Thời gian làm bài: ${p.partDuration} phút')),
 
                   const SizedBox(height: 24),
 
-                  // Regulations
                   const Text(
                     'Quy chế & Hướng dẫn',
                     style: TextStyle(
@@ -402,7 +402,6 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
             ),
           ),
 
-          // Bottom Action Bar
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -417,7 +416,6 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
             ),
             child: Row(
               children: [
-                // Display price in bar
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
@@ -436,7 +434,6 @@ class _ExamDetailScreenState extends State<ExamDetailScreen> {
                 ),
                 const SizedBox(width: 24),
 
-                // Action Button
                 Expanded(
                   child: SizedBox(
                     height: 48,

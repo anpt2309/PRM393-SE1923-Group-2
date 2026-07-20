@@ -256,20 +256,20 @@ class _RewardShopScreenState extends ConsumerState<RewardShopScreen>
       body: rewardState.isLoading
           ? const Center(child: CircularProgressIndicator())
           : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildShopList(rewardState.rewards, firebaseUid, displayCoins),
-                _buildHistoryList(rewardState.history),
-              ],
-            ),
+        controller: _tabController,
+        children: [
+          _buildShopList(rewardState.rewards, firebaseUid, displayCoins),
+          _buildHistoryList(rewardState.history),
+        ],
+      ),
     );
   }
 
   Widget _buildShopList(
-    List<dynamic> rewards,
-    String firebaseUid,
-    int currentCoins,
-  ) {
+      List<dynamic> rewards,
+      String firebaseUid,
+      int currentCoins,
+      ) {
     if (rewards.isEmpty) {
       return _buildEmptyState('Hiện chưa có quà tặng nào trong cửa hàng.');
     }

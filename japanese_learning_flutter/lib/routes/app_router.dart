@@ -33,6 +33,8 @@ import 'package:japanese_learning/views/vocab/vocab_study_screen.dart';
 import 'package:japanese_learning/data/models/exam.dart';
 import 'package:japanese_learning/providers/auth_provider.dart';
 
+import '../views/payment/qr_payment_screen.dart';
+
 // Auth helper để lấy userId từ Riverpod
 int _getUserId(WidgetRef ref) {
   final authState = ref.watch(authProvider);
@@ -76,6 +78,7 @@ class AppRoutes {
   static const streak = '/streak';
   static const paymentCheckout = '/payment/checkout';
   static const paymentHistory = '/payment/history';
+  static const paymentQr = '/payment/qr';
   static const search = '/search';
   static const vocab = '/vocab';
   static const kanji = '/kanji';
@@ -328,6 +331,8 @@ final appRouter = GoRouter(
       builder: (context, state) {
         final extra = state.extra as Map<String, dynamic>?;
         return CheckoutScreen(
+          examId: extra?['examId'] as int? ?? 0,
+          price: extra?['price'] as String? ?? '0',
           currentCoins: extra?['currentCoins'] as int? ?? 0,
           onCoinsUpdated: extra?['onCoinsUpdated'] as Function(int)?,
           selectedVoucher: extra?['selectedVoucher'] as Map<String, dynamic>?,
@@ -338,13 +343,17 @@ final appRouter = GoRouter(
       path: AppRoutes.paymentHistory,
       builder: (context, state) => const PaymentHistoryScreen(),
     ),
-    // GoRoute(
-    //   path: AppRoutes.paymentHistory,
-    //   builder: (context, state) {
-    //     final coins = state.extra is int ? state.extra as int : 0;
-    //     return PaymentHistoryScreen(currentCoins: coins);
-    //   },
-    // ),
+    GoRoute(
+      path: AppRoutes.paymentQr,
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>;
+        return QrPaymentScreen(
+          qrUrl: extra['qrUrl'],
+          paymentCode: extra['paymentCode'],
+          totalAmount: extra['totalAmount'],
+        );
+      },
+    ),
     GoRoute(
       path: AppRoutes.search,
       builder: (context, state) => const JapaneseSearchScreen(),

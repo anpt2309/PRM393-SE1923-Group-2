@@ -10,8 +10,9 @@ class PaymentHistoryRepository {
   Future<List<PaymentHistory>> getPaymentHistory(String firebaseUid) async {
     try {
       return await _service.fetchPaymentHistory(firebaseUid);
-    } catch (_) {
-      return []; // Trả về giá trị mặc định theo thiết kế pattern của dự án
+    } catch (e) {
+      // Không trả về [] nữa, hãy rethrow hoặc chuyển tiếp lỗi để UI/Notifier biết
+      rethrow;
     }
   }
 }

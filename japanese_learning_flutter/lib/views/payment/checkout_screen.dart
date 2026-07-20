@@ -1,48 +1,72 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../providers/payment_provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../routes/app_router.dart';
 
-class CheckoutScreen extends StatefulWidget {
+class CheckoutScreen extends ConsumerStatefulWidget {
   final int currentCoins;
   final Function(int)? onCoinsUpdated;
   final Map<String, dynamic>? selectedVoucher;
+  final int examId;
+  final String price;
 
   const CheckoutScreen({
     super.key,
     this.currentCoins = 0,
     this.onCoinsUpdated,
     this.selectedVoucher,
+    required this.examId,
+    this.price = '0',
   });
 
   @override
-  State<CheckoutScreen> createState() => _CheckoutScreenState();
+  ConsumerState<CheckoutScreen> createState() => _CheckoutScreenState();
 }
 
-class _CheckoutScreenState extends State<CheckoutScreen> {
-  // Thông tin đơn hàng mẫu
-  final Map<String, dynamic> _orderInfo = {
-    'items': [
-      {'name': 'Khóa học JLPT N5 Pro', 'price': 500000, 'quantity': 1},
-      {'name': 'Sách bài tập tiếng Nhật', 'price': 150000, 'quantity': 2},
-    ],
-    'shippingFee': 30000,
-  };
+class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
+  // GIẢI QUYẾT VẤN ĐỀ 1: Khởi tạo thông tin đơn hàng linh hoạt, giá sẽ đồng bộ từ cấu hình hệ thống hoặc cổng thanh toán
+  late Map<String, dynamic> _orderInfo;
 
   Map<String, dynamic>? _selectedVoucher;
   String _voucherCode = '';
   final TextEditingController _voucherController = TextEditingController();
   bool _isApplyingVoucher = false;
-  int _discountAmount = 0;  // Đổi từ double sang int
+  int _discountAmount = 0;
   String _appliedVoucherName = '';
   bool _useCoins = false;
   int _coinsToUse = 0;
   int _maxCoinsCanUse = 0;
 
-  // Các phương thức thanh toán
-  String _selectedPaymentMethod = 'coin'; // coin, momo, zalopay, bank
+  String _selectedPaymentMethod = 'bank';
 
   @override
   void initState() {
     super.initState();
+
+    // Xử lý chuyển đổi chuỗi giá (ví dụ: "50.000đ" hoặc "50000") sang số int thực tế
+    final cleanPrice = widget.price.replaceAll(RegExp(r'[^\d]'), '');
+    int parsedPrice = int.tryParse(cleanPrice) ?? 0;
+
+    // Nếu giá lọc ra bằng 0 nhưng chuỗi không trống, hãy gán một giá trị fallback an toàn (ví dụ: 50000)
+    if (parsedPrice == 0 && widget.price.toLowerCase().trim() != 'miễn phí' && widget.price.isNotEmpty) {
+      parsedPrice = 50000;
+    }
+
+    // Khởi tạo thông tin mặt hàng dựa trên dữ liệu thật
+    _orderInfo = {
+      'items': [
+        {
+          'id': widget.examId,
+          'name': 'Đề thi trực tuyến (ID: ${widget.examId})',
+          'price': parsedPrice,
+          'quantity': 1
+        },
+      ],
+      'shippingFee': 0,
+    };
+
     if (widget.selectedVoucher != null) {
       _selectedVoucher = widget.selectedVoucher;
       _voucherCode = _selectedVoucher!['code'] ?? '';
@@ -53,9 +77,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   void _calculateMaxCoins() {
     final totalAfterVoucher = _getSubtotal() - _discountAmount;
-    int maxCoins = (totalAfterVoucher / 1000).floor();
-    if (maxCoins > widget.currentCoins) {
-      maxCoins = widget.currentCoins;
+    int maxCoins = totalAfterVoucher;
+
+    final userState = ref.read(authProvider);
+    final int currentCoins = userState.coin ?? widget.currentCoins;
+
+    if (maxCoins > currentCoins) {
+      maxCoins = currentCoins;
     }
     if (maxCoins < 0) maxCoins = 0;
     setState(() {
@@ -75,14 +103,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     int total = _getSubtotal() + (_orderInfo['shippingFee'] as int);
     total -= _discountAmount;
     if (_useCoins) {
-      total -= _coinsToUse * 1000;
+      total -= _coinsToUse;
     }
     if (total < 0) total = 0;
     return total;
   }
 
   void _applyVoucher() {
-    if (_voucherController.text.isEmpty) {
+    if (_voucherController.text.isEmpty && widget.selectedVoucher == null) {
       _showSnackBar('Vui lòng nhập mã giảm giá', Colors.orange);
       return;
     }
@@ -91,17 +119,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _isApplyingVoucher = true;
     });
 
-    // Giả lập kiểm tra mã voucher
     Future.delayed(const Duration(milliseconds: 500), () {
-      final code = _voucherController.text.toUpperCase();
+      final code = _voucherController.text.trim().toUpperCase();
 
-      // Danh sách mã giảm giá mẫu
       final Map<String, dynamic> validVouchers = {
         'SAVE10': {'discount': 10, 'type': 'percent', 'name': 'Giảm 10%', 'minOrder': 0},
-        'SAVE20': {'discount': 20, 'type': 'percent', 'name': 'Giảm 20%', 'minOrder': 200000},
-        'SAVE50K': {'discount': 50000, 'type': 'fixed', 'name': 'Giảm 50.000đ', 'minOrder': 300000},
-        'SAVE100K': {'discount': 100000, 'type': 'fixed', 'name': 'Giảm 100.000đ', 'minOrder': 500000},
-        'FREESHIP': {'discount': _orderInfo['shippingFee'], 'type': 'fixed', 'name': 'Miễn phí vận chuyển', 'minOrder': 0},
+        'SAVE50K': {'discount': 50000, 'type': 'fixed', 'name': 'Giảm 50.000đ', 'minOrder': 50000},
       };
 
       if (validVouchers.containsKey(code)) {
@@ -179,59 +202,91 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     });
   }
 
-  void _processPayment() {
+  // GIẢI QUYẾT VẤN ĐỀ 2: Đồng bộ an toàn State trả về từ Provider sau API call
+  void _processPayment() async {
     final total = _getTotal();
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Xác nhận thanh toán'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.payment, size: 60, color: Color(0xFF1E88E5)),
-            const SizedBox(height: 16),
-            Text(
-              'Tổng thanh toán: ${_formatMoney(total)}',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFFFF6B35)),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Phương thức: ${_getPaymentMethodName()}',
-              style: TextStyle(color: Colors.grey[600]),
-            ),
-            if (_useCoins)
+    if (_selectedPaymentMethod == 'bank') {
+      final userState = ref.read(authProvider);
+      final int currentUserId = userState.userId ?? 1;
+
+      // Log kiểm tra trước khi tạo request
+      print('DEBUG: Đang gửi thanh toán với ExamId: ${widget.examId} cho UserId: $currentUserId');
+
+      // Thực thi gọi API
+      await ref.read(paymentProvider.notifier).processCheckout(
+        userId: currentUserId,
+        examId: widget.examId, // ID chuẩn xác nhận từ Router
+        voucherCode: _voucherCode,
+        useCoin: _useCoins,
+      );
+
+      // Đọc lại State mới nhất sau khi tiến trình Async kết thúc hoàn toàn
+      final updatedPaymentState = ref.read(paymentProvider);
+
+      if (updatedPaymentState.error != null) {
+        _showSnackBar('Lỗi từ Server: ${updatedPaymentState.error}', Colors.red);
+        return;
+      }
+
+      if (updatedPaymentState.checkoutData != null) {
+        if (!mounted) return;
+        // Chuyển sang màn hình QR
+        context.push(
+          AppRoutes.paymentQr,
+          extra: {
+            'qrUrl': updatedPaymentState.checkoutData!.qrUrl,
+            'paymentCode': updatedPaymentState.checkoutData!.paymentCode,
+            'totalAmount': total,
+          },
+        );
+      } else {
+        _showSnackBar('Không nhận được dữ liệu phản hồi từ cổng thanh toán.', Colors.orange);
+      }
+    } else {
+      // Xử lý ví nội bộ (Coin/Offline)
+      final userState = ref.read(authProvider);
+      final int currentCoins = userState.coin ?? widget.currentCoins;
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Xác nhận thanh toán'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.payment, size: 60, color: Color(0xFF1E88E5)),
+              const SizedBox(height: 16),
               Text(
-                'Sử dụng $_coinsToUse coin (-${_formatMoney(_coinsToUse * 1000)})',
-                style: const TextStyle(fontSize: 12, color: Colors.amber),
+                'Tổng thanh toán: ${_formatMoney(total)}',
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFFFF6B35)),
               ),
+              const SizedBox(height: 8),
+              Text(
+                'Phương thức: ${_getPaymentMethodName()}',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _showSuccessDialog();
+                if (_useCoins) {
+                  widget.onCoinsUpdated?.call(currentCoins - _coinsToUse);
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF6B35)),
+              child: const Text('Xác nhận thanh toán'),
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _showSuccessDialog();
-              if (_useCoins) {
-                widget.onCoinsUpdated?.call(
-                  widget.currentCoins - _coinsToUse,
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF6B35),
-            ),
-            child: const Text('Xác nhận thanh toán'),
-          ),
-        ],
-      ),
-    );
+      );
+    }
   }
 
   void _showSuccessDialog() {
@@ -251,7 +306,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             const SizedBox(height: 16),
             const Text('Thanh toán thành công!', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            const Text('Cảm ơn bạn đã mua hàng', style: TextStyle(color: Colors.grey)),
+            const Text('Hệ thống đã ghi nhận đơn hàng của bạn', style: TextStyle(color: Colors.grey)),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () {
@@ -270,10 +325,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   String _getPaymentMethodName() {
     switch (_selectedPaymentMethod) {
       case 'coin': return 'Coin';
-      case 'momo': return 'MoMo';
-      case 'zalopay': return 'ZaloPay';
       case 'bank': return 'Chuyển khoản ngân hàng';
-      default: return 'Coin';
+      default: return 'Chuyển khoản ngân hàng';
     }
   }
 
@@ -283,7 +336,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: color, duration: const Duration(seconds: 2)),
+      SnackBar(content: Text(message), backgroundColor: color, duration: const Duration(seconds: 3)),
     );
   }
 
@@ -293,9 +346,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final userState = ref.watch(authProvider);
+    final int userCoins = userState.coin ?? widget.currentCoins;
     final subtotal = _getSubtotal();
-    final shipping = _orderInfo['shippingFee'] as int;
     final total = _getTotal();
+    final paymentState = ref.watch(paymentProvider);
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -305,17 +360,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         backgroundColor: const Color(0xFF1E88E5),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          // Nút lịch sử thanh toán
           IconButton(
             icon: const Icon(Icons.history, color: Colors.white),
             onPressed: _goToHistory,
             tooltip: 'Lịch sử thanh toán',
           ),
-          // Hiển thị số coin
           Container(
             margin: const EdgeInsets.only(right: 16),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -328,7 +381,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 const Icon(Icons.monetization_on, color: Colors.amber, size: 18),
                 const SizedBox(width: 4),
                 Text(
-                  '${widget.currentCoins}',
+                  '$userCoins',
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
                 ),
               ],
@@ -336,10 +389,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
+      body: paymentState.isLoading
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF6B35)))
+          : SingleChildScrollView(
         child: Column(
           children: [
-            // Danh sách sản phẩm
             Container(
               margin: const EdgeInsets.all(16),
               decoration: _cardDecoration(),
@@ -370,16 +424,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ],
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Phí vận chuyển', style: TextStyle(fontSize: 14)),
-                        Text(_formatMoney(shipping), style: const TextStyle(fontWeight: FontWeight.w500)),
-                      ],
-                    ),
-                  ),
                   if (_discountAmount > 0)
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -398,7 +442,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text('Sử dụng $_coinsToUse coin', style: const TextStyle(color: Colors.amber, fontSize: 14)),
-                          Text('-${_formatMoney(_coinsToUse * 1000)}', style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.w500)),
+                          Text('-${_formatMoney(_coinsToUse)}', style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.w500)),
                         ],
                       ),
                     ),
@@ -417,7 +461,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
             ),
 
-            // Mã giảm giá
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               decoration: _cardDecoration(),
@@ -435,8 +478,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             controller: _voucherController,
                             enabled: _selectedVoucher == null,
                             decoration: InputDecoration(
-                              hintText: 'Nhập mã giảm giá',
-                              hintStyle: TextStyle(color: Colors.grey[400]),
+                              hintText: 'Nhập mã giảm giá (SAVE10, SAVE50K)',
+                              hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                             ),
@@ -465,44 +508,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ],
                     ),
                   ),
-                  if (_selectedVoucher != null)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.check_circle, color: Colors.green, size: 16),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Đã áp dụng: $_appliedVoucherName (giảm ${_selectedVoucher!['discountValue']}${_selectedVoucher!['type'] == 'percent' ? '%' : 'đ'})',
-                                style: const TextStyle(fontSize: 12, color: Colors.green),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
                 ],
               ),
             ),
 
-            // Sử dụng Coin
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: _cardDecoration(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text('Sử dụng Coin', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  ),
+                  const Padding(padding: EdgeInsets.all(16), child: Text('Sử dụng Coin', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
                   const Divider(),
                   Padding(
                     padding: const EdgeInsets.all(16),
@@ -519,10 +535,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     const Text('Dùng coin để thanh toán', style: TextStyle(fontWeight: FontWeight.w500)),
-                                    Text(
-                                      'Bạn có ${widget.currentCoins} coin (1 coin = 1.000đ)',
-                                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                                    ),
+                                    Text('Bạn có $userCoins coin (1.000 coin = 1.000đ)', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
                                   ],
                                 ),
                               ],
@@ -544,43 +557,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 children: [
                                   IconButton(
                                     icon: const Icon(Icons.remove_circle, size: 28),
-                                    onPressed: () => _adjustCoins(-50),
+                                    onPressed: () => _adjustCoins(-100),
                                     color: _coinsToUse > 0 ? const Color(0xFFFF6B35) : Colors.grey,
                                   ),
                                   Container(
                                     width: 80,
                                     padding: const EdgeInsets.symmetric(vertical: 8),
-                                    decoration: BoxDecoration(
-                                      border: Border.all(color: Colors.grey[300]!),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Text(
-                                      '$_coinsToUse',
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                                    ),
+                                    decoration: BoxDecoration(border: Border.all(color: Colors.grey[300]!), borderRadius: BorderRadius.circular(10)),
+                                    child: Text('$_coinsToUse', textAlign: TextAlign.center, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                                   ),
                                   IconButton(
                                     icon: const Icon(Icons.add_circle, size: 28),
-                                    onPressed: () => _adjustCoins(50),
+                                    onPressed: () => _adjustCoins(100),
                                     color: _coinsToUse < _maxCoinsCanUse ? const Color(0xFFFF6B35) : Colors.grey,
                                   ),
                                 ],
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          LinearProgressIndicator(
-                            value: _maxCoinsCanUse > 0 ? _coinsToUse / _maxCoinsCanUse : 0,
-                            backgroundColor: Colors.grey[200],
-                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.amber),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text('Tối đa: $_maxCoinsCanUse coin', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                              Text('Giảm: -${_formatMoney(_coinsToUse * 1000)}', style: const TextStyle(fontSize: 12, color: Colors.green)),
                             ],
                           ),
                         ],
@@ -591,46 +583,26 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
             ),
 
-            // Phương thức thanh toán
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: _cardDecoration(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text('Phương thức thanh toán', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  ),
+                  const Padding(padding: EdgeInsets.all(16), child: Text('Phương thức thanh toán', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
                   const Divider(),
                   RadioListTile(
-                    title: const Text('💰 Coin'),
-                    subtitle: const Text('Thanh toán bằng coin trong ví'),
-                    value: 'coin',
-                    groupValue: _selectedPaymentMethod,
-                    onChanged: (value) => setState(() => _selectedPaymentMethod = value as String),
-                    activeColor: const Color(0xFFFF6B35),
-                  ),
-                  RadioListTile(
-                    title: const Text('📱 MoMo'),
-                    subtitle: const Text('Thanh toán qua ví MoMo'),
-                    value: 'momo',
-                    groupValue: _selectedPaymentMethod,
-                    onChanged: (value) => setState(() => _selectedPaymentMethod = value as String),
-                    activeColor: const Color(0xFFFF6B35),
-                  ),
-                  RadioListTile(
-                    title: const Text('💚 ZaloPay'),
-                    subtitle: const Text('Thanh toán qua ZaloPay'),
-                    value: 'zalopay',
-                    groupValue: _selectedPaymentMethod,
-                    onChanged: (value) => setState(() => _selectedPaymentMethod = value as String),
-                    activeColor: const Color(0xFFFF6B35),
-                  ),
-                  RadioListTile(
-                    title: const Text('🏦 Chuyển khoản ngân hàng'),
-                    subtitle: const Text('Chuyển khoản qua các ngân hàng'),
+                    title: const Text('🏦 Chuyển khoản ngân hàng (VietQR)'),
+                    subtitle: const Text('Tự động xác nhận qua cổng ngân hàng SePay'),
                     value: 'bank',
+                    groupValue: _selectedPaymentMethod,
+                    onChanged: (value) => setState(() => _selectedPaymentMethod = value as String),
+                    activeColor: const Color(0xFFFF6B35),
+                  ),
+                  RadioListTile(
+                    title: const Text('💰 Coin hệ thống'),
+                    subtitle: const Text('Thanh toán nhanh bằng ví nội bộ'),
+                    value: 'coin',
                     groupValue: _selectedPaymentMethod,
                     onChanged: (value) => setState(() => _selectedPaymentMethod = value as String),
                     activeColor: const Color(0xFFFF6B35),
@@ -639,7 +611,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
             ),
 
-            // Nút thanh toán
             Container(
               margin: const EdgeInsets.all(16),
               child: ElevatedButton(
@@ -674,11 +645,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
       boxShadow: [
-        BoxShadow(
-          color: Colors.grey.withOpacity(0.1),
-          blurRadius: 8,
-          offset: const Offset(0, 2),
-        ),
+        BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2)),
       ],
     );
   }
