@@ -30,21 +30,21 @@ public interface StudentAnswerRepository extends JpaRepository<StudentAnswer, Lo
 
 // BJT LOGIC
         // Lấy hết danh sách đáp án có sẵn từ DB mà User đã chọn theo PartId
-        @Query("select re from StudentAnswer re " +
-                "join re.question.id ques " +
-                "where re.attempt.id =:attemptId " +
-                "and re.question.id in :questionId " +
-                "and ques.part.id =:partId ")
-        List<StudentAnswer> getAnswerByPartIdAndQuestion(Long attemptId,Integer partId, List<Long> questionId);
-
-        // Lấy toàn bộ danh sách câu hỏi mà user đã chọn theo phiên thi(attempt) & partID
-        // Phục vụ logic lưu và chấm điểm từng phần
-        @Query(value = "select sa.question_id as questionId, sa.selected_option_id as optionId " +
-                "from student_responses sa " +
-                "join exam_attempts ex_at on ex_at.id = sa.attempt_id" +
-                "where sa.attempt_id = :attemptId and ex_at.current_part_id =:partId", nativeQuery = true)
-        List<StudentAnswerProjection> findByAttempt_IdAndPartId(@Param("attemptId") Long attemptId,
-                                                               @Param("partId") Integer partId);
+//        @Query("select re from StudentAnswer re " +
+//                "join re.question.id ques " +
+//                "where re.attempt.id =:attemptId " +
+//                "and re.question.id in :questionId " +
+//                "and ques.part.id =:partId ")
+//        List<StudentAnswer> getAnswerByPartIdAndQuestion(Long attemptId,Integer partId, List<Long> questionId);
+//
+//        // Lấy toàn bộ danh sách câu hỏi mà user đã chọn theo phiên thi(attempt) & partID
+//        // Phục vụ logic lưu và chấm điểm từng phần
+//        @Query(value = "select sa.question_id as questionId, sa.selected_option_id as optionId " +
+//                "from student_responses sa " +
+//                "join exam_attempts ex_at on ex_at.id = sa.attempt_id" +
+//                "where sa.attempt_id = :attemptId and ex_at.current_part_id =:partId", nativeQuery = true)
+//        List<StudentAnswerProjection> findByAttempt_IdAndPartId(@Param("attemptId") Long attemptId,
+//                                                               @Param("partId") Integer partId);
         @Modifying
         @Transactional
         @Query("delete from StudentAnswer sa where sa.attempt.id = :attemptId")

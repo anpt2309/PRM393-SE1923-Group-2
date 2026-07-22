@@ -31,7 +31,7 @@ class GrammarSpeechHelper {
       debugPrint("Grammar TTS initialization failed: $e");
     }
   }
-
+// doc van ban bang giong noi
   Future<void> speak(String text) async {
     if (!_isReady) return;
     try {
