@@ -14,12 +14,16 @@ import com.example.japanese_learning.enums.PurchaseStatus;
 import com.example.japanese_learning.features.payment.repositories.*;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PaymentService {
@@ -29,7 +33,6 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final RewardRedemptionPaymentRepository redemptionRepository;
 
-    // Đọc các giá trị bảo mật từ file application.properties
     @Value("${sepay.bank.bin}")
     private String sepayBankBin;
 
@@ -85,8 +88,8 @@ public class PaymentService {
             userRepository.save(user);
         }
 
-        // Sinh mã ngẫu nhiên duy nhất dựa vào NanoTime để tránh trùng lặp
-        String paymentCode = "JL" + (System.nanoTime() % 1000000);
+        // Sinh mã thanh toán chữ hoa thống nhất: JL + 5 chữ số ngẫu nhiên/timestamp
+        String paymentCode = "JL" + (System.currentTimeMillis() % 100000);
 
         String qrUrl = String.format("https://img.vietqr.io/image/%s-%s-compact2.png?amount=%d&addInfo=%s",
                 sepayBankBin, sepayAccNo, finalPrice, paymentCode);
@@ -114,31 +117,51 @@ public class PaymentService {
 
     @Transactional
     public void processSePayWebhook(String authorizationHeader, SePayWebhookRequest webhookData) {
-        // 1. Kiểm tra Token bảo mật của SePay gửi kèm ở Header để tránh hacker tự gửi request giả lập
-        if (authorizationHeader == null || !authorizationHeader.equals("Apikey " + sepayWebhookToken)) {
-            throw new RuntimeException("Xác thực Webhook thất bại! Token không hợp lệ.");
+        log.info("📩 Nhận Webhook từ SePay: Authorization={}, Content={}", authorizationHeader, webhookData.getContent());
+
+        // 1. Kiểm tra Token bảo mật (Hỗ trợ cả trường hợp có 'Apikey ' hoặc chỉ gửi Token thuần)
+        if (sepayWebhookToken != null && !sepayWebhookToken.isBlank()) {
+            boolean isValidToken = authorizationHeader != null &&
+                    (authorizationHeader.equals("Apikey " + sepayWebhookToken) || authorizationHeader.equals(sepayWebhookToken));
+
+            if (!isValidToken) {
+                log.error("❌ Xác thực Webhook thất bại! Token không khớp.");
+                throw new RuntimeException("Xác thực Webhook thất bại! Token không hợp lệ.");
+            }
         }
 
         String content = webhookData.getContent();
-        if (content == null) {
+        if (content == null || content.isBlank()) {
             throw new RuntimeException("Nội dung chuyển khoản trống.");
         }
 
-        // 2. TỐI ƯU: Tìm kiếm trực tiếp bằng câu truy vấn SQL thông qua repository thay vì .findAll() bừa bãi
-        Payment payment = paymentRepository.findByPaymentCode(extractPaymentCode(content))
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy mã giao dịch khớp với nội dung chuyển khoản"));
+        // 2. Bóc tách tìm mã JLXXXXXX
+        String extractedCode = extractPaymentCode(content);
+        log.info("🔍 Mã thanh toán bóc tách từ nội dung: {}", extractedCode);
+
+        Payment payment = paymentRepository.findByPaymentCode(extractedCode)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy mã giao dịch: " + extractedCode));
 
         if (payment.getStatus() != PaymentStatus.PENDING) {
-            throw new RuntimeException("Giao dịch này đã được xử lý từ trước.");
+            log.warn("⚠️ Giao dịch {} đã được xử lý từ trước.", extractedCode);
+            return; // Đã xử lý rồi thì return 200 luôn cho SePay, không throw Exception
         }
 
-        if (!webhookData.getTransferAmount().equals(payment.getAmount())) {
+        // 3. Ép kiểu an toàn khi so sánh số tiền chuyển khoản
+        double transferAmount = webhookData.getTransferAmount() != null ? webhookData.getTransferAmount().doubleValue() : 0;
+        double expectedAmount = payment.getAmount() != null ? payment.getAmount().doubleValue() : 0;
+
+        if (Math.abs(transferAmount - expectedAmount) > 0.01) {
+            log.error("❌ Số tiền không khớp! Nhận: {}, Cần: {}", transferAmount, expectedAmount);
             throw new RuntimeException("Số tiền chuyển khoản thực tế không khớp với hệ thống!");
         }
 
-        // 3. Cập nhật trạng thái Payment và lưu vết thông tin đối soát ngân hàng
+        // 4. Cập nhật trạng thái
         payment.setStatus(PaymentStatus.SUCCESS);
         payment.setPaidAt(LocalDateTime.now());
+        if (webhookData.getId() != null) {
+            payment.setTransactionId(String.valueOf(webhookData.getId()));
+        }
         paymentRepository.save(payment);
 
         Purchase purchase = payment.getPurchase();
@@ -148,15 +171,22 @@ public class PaymentService {
         Exam exam = purchase.getExam();
         exam.setUserCount((exam.getUserCount() != null ? exam.getUserCount() : 0) + 1);
         examRepository.save(exam);
+
+        log.info("✅ Kích hoạt đơn hàng ID: {} thành công cho user: {}", purchase.getId(), purchase.getUser().getId());
     }
 
-    // Hàm bổ trợ bóc tách tìm chuỗi bắt đầu bằng JL từ nội dung tin nhắn của ngân hàng
+    // Hàm bổ trợ Regex tìm mã JL (không phân biệt hoa thường)
     private String extractPaymentCode(String content) {
-        int index = content.indexOf("JL");
-        if (index != -1 && content.length() >= index + 8) {
-            return content.substring(index, index + 8).replaceAll("[^a-zA-Z0-9]", "");
+        if (content == null) return "";
+
+        // Tìm từ khóa "JL" nối tiếp bằng 1-10 ký tự chữ hoặc số (VD: JL69496)
+        Pattern pattern = Pattern.compile("JL[a-zA-Z0-9]{1,10}", Pattern.CASE_INSENSITIVE);
+        Matcher matcher = pattern.matcher(content);
+
+        if (matcher.find()) {
+            return matcher.group().toUpperCase(); // Luôn viết hoa mã trả về
         }
-        return content; // Dự phòng nếu chuỗi quá ngắn
+        return content.trim().toUpperCase();
     }
 
     @Transactional
@@ -170,6 +200,16 @@ public class PaymentService {
 
         purchase.setStatus(PurchaseStatus.REJECTED);
         purchaseRepository.save(purchase);
+
+        // Cập nhật trạng thái Payment liên quan
+        paymentRepository.findByPurchaseUserFirebaseUidOrderByIdDesc(purchase.getUser().getFirebaseUid())
+                .stream()
+                .filter(p -> p.getPurchase().getId().equals(purchaseId))
+                .findFirst()
+                .ifPresent(p -> {
+                    p.setStatus(PaymentStatus.CANCELLED);
+                    paymentRepository.save(p);
+                });
 
         RewardRedemption redemption = redemptionRepository.findAll().stream()
                 .filter(r -> r.getPurchase() != null && r.getPurchase().getId().equals(purchaseId))
@@ -212,5 +252,32 @@ public class PaymentService {
                 .createdAt(payment.getCreatedAt())
                 .build()
         ).toList();
+    }
+
+    @Transactional
+    public void cancelExpiredPurchases() {
+        LocalDateTime fiveMinutesAgo = LocalDateTime.now().minusMinutes(5);
+
+        List<Purchase> expiredPurchases = purchaseRepository
+                .findByStatusAndCreatedAtBefore(PurchaseStatus.PENDING, fiveMinutesAgo);
+
+        for (Purchase purchase : expiredPurchases) {
+            try {
+                cancelOrExpirePurchase(purchase.getId(), "Tự động hủy do quá thời gian thanh toán (5 phút)");
+            } catch (Exception e) {
+                log.error("Lỗi tự động hủy đơn ID: {} - {}", purchase.getId(), e.getMessage());
+            }
+        }
+    }
+
+    public String getPurchaseStatus(Long purchaseId) {
+        Purchase purchase = purchaseRepository.findById(purchaseId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy thông tin đơn mua"));
+        return purchase.getStatus().name();
+    }
+
+    // Thêm hàm này để tương thích hoàn toàn với Flutter gọi checkPurchaseStatus
+    public String checkPurchaseStatus(Long purchaseId) {
+        return getPurchaseStatus(purchaseId);
     }
 }

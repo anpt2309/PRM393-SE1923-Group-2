@@ -40,6 +40,7 @@ public class Payment {
     private String transactionId;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "status", length = 50) // 🟢 Thêm dòng này vào
     private PaymentStatus status = PaymentStatus.PENDING;
 
     // Hết hạn QR

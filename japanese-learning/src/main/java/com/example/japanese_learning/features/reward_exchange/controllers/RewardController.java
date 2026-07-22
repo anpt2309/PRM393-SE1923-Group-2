@@ -11,7 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-// RedeemRequest
+
 @CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/api/rewards")
@@ -23,18 +23,11 @@ public class RewardController {
     // API đổi thưởng bằng xu
     @PostMapping("/redeem")
     public ResponseEntity<ApiResponse<RedeemResponse>> redeem(
-            // ─── THAY ĐỔI Ở ĐÂY ─────────────────────────────────────────
-            // Đổi từ `@RequestParam Long userId` sang `@RequestParam String firebaseUid` để nhận UID dạng chuỗi từ Flutter gửi lên
             @RequestParam String firebaseUid,
-            // ─────────────────────────────────────────────────────────────
             @RequestBody RedeemRequests request) {
-
-        // ─── THAY ĐỔI Ở ĐÂY ─────────────────────────────────────────
-        // Truyền tham số firebaseUid vào hàm xử lý của service thay vì userId cũ
         RedeemResponse response = rewardService.redeemReward(firebaseUid, request);
-        // ─────────────────────────────────────────────────────────────
 
-        // Đóng gói theo chuẩn cấu trúc ApiResponse hiện tại của bạn
+        // Đóng gói theo chuẩn cấu trúc ApiResponse
         ApiResponse<RedeemResponse> apiResponse = ApiResponse.<RedeemResponse>builder()
                 .id(200) // Mã code thành công (hoặc HTTP Status)
                 .message("Đổi phần thưởng thành công!")
@@ -69,6 +62,20 @@ public class RewardController {
                 .id(200)
                 .message("Lấy lịch sử đổi thưởng thành công!")
                 .data(history)
+                .build();
+
+        return ResponseEntity.ok(apiResponse);
+    }
+
+    // API lấy thông tin chi tiết 1 reward theo ID
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<RewardResponse>> getRewardById(@PathVariable Long id) {
+        RewardResponse reward = rewardService.getRewardById(id);
+
+        ApiResponse<RewardResponse> apiResponse = ApiResponse.<RewardResponse>builder()
+                .id(200)
+                .message("Lấy thông tin phần thưởng thành công!")
+                .data(reward)
                 .build();
 
         return ResponseEntity.ok(apiResponse);

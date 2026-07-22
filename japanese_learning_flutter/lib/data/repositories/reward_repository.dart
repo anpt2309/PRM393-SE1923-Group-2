@@ -29,4 +29,12 @@ class RewardRepository {
       return []; // Trả về danh sách rỗng khi có lỗi
     }
   }
+
+  Future<RewardModel?> getRewardById(int id) async {
+    try {
+      return await _service.fetchRewardById(id);
+    } catch (_) {
+      return null; // Tuân thủ nguyên tắc Repository bắt Exception không rethrow
+    }
+  }
 }

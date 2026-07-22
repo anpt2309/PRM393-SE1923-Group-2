@@ -5,12 +5,16 @@ import com.example.japanese_learning.dto.request.SePayWebhookRequest;
 import com.example.japanese_learning.dto.response.ApiResponse;
 import com.example.japanese_learning.dto.response.PaymentCheckoutResponse;
 import com.example.japanese_learning.dto.response.PaymentHistoryResponse;
+import com.example.japanese_learning.enums.PurchaseStatus;
+import com.example.japanese_learning.features.payment.repositories.PurchaseRepository;
 import com.example.japanese_learning.features.payment.services.PaymentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @CrossOrigin(origins = "*")
 @RestController
@@ -18,6 +22,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PaymentController {
     private final PaymentService paymentService;
+    private final PurchaseRepository purchaseRepository;
 
     // API phục vụ màn hình Frontend ấn nút "Thanh toán"
     @PostMapping("/checkout")
@@ -36,7 +41,7 @@ public class PaymentController {
         return ResponseEntity.ok(apiResponse);
     }
 
-    // API nhận Webhook từ SePay truyền tín hiệu về hệ thống (Giữ nguyên chuỗi String phản hồi cho SePay)
+    // API nhận Webhook từ SePay truyền tín hiệu về hệ thống
     @PostMapping("/webhook")
     public ResponseEntity<String> handleSePayWebhook(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
@@ -51,7 +56,9 @@ public class PaymentController {
 
     // API hỗ trợ hủy đơn thủ công hoặc kích hoạt hủy tự động khi quá thời gian
     @PostMapping("/purchase/{id}/cancel")
-    public ResponseEntity<ApiResponse<Void>> cancelPurchase(@PathVariable Long id, @RequestParam String reason) {
+    public ResponseEntity<ApiResponse<Void>> cancelPurchase(
+            @PathVariable Long id,
+            @RequestParam(required = false, defaultValue = "Người dùng hoặc hệ thống hủy đơn") String reason) {
         try {
             paymentService.cancelOrExpirePurchase(id, reason);
 
@@ -90,5 +97,34 @@ public class PaymentController {
                     .build();
             return ResponseEntity.badRequest().body(errorResponse);
         }
+    }
+
+    // API cho Frontend liên tục gọi (Polling) để kiểm tra trạng thái đơn hàng (PENDING, APPROVED, REJECTED)
+    @GetMapping("/purchase/{purchaseId}/status")
+    public ResponseEntity<ApiResponse<String>> checkPurchaseStatus(@PathVariable Long purchaseId) {
+        String status = paymentService.getPurchaseStatus(purchaseId);
+
+        ApiResponse<String> response = ApiResponse.<String>builder()
+                .id(200)
+                .message("Lấy trạng thái đơn hàng thành công")
+                .data(status)
+                .build();
+
+        return ResponseEntity.ok(response);
+    }
+
+    // API kiểm tra quyền truy cập bài thi của User
+    @GetMapping("/{examId}/status")
+    public ResponseEntity<Map<String, Object>> checkExamAccessStatus(
+            @PathVariable Long examId,
+            @RequestParam Long userId) {
+
+        boolean isUnlocked = purchaseRepository.existsByUserIdAndExamIdAndStatus(
+                userId, examId, PurchaseStatus.APPROVED
+        );
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("isUnlocked", isUnlocked);
+        return ResponseEntity.ok(response);
     }
 }

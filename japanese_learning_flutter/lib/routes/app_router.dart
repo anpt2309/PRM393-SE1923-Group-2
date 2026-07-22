@@ -33,7 +33,7 @@ import 'package:japanese_learning/views/vocab/vocab_study_screen.dart';
 import 'package:japanese_learning/data/models/exam.dart';
 import 'package:japanese_learning/providers/auth_provider.dart';
 
-import '../views/payment/qr_payment_screen.dart';
+import '../views/payment/payment_qr_screen.dart';
 
 // Auth helper để lấy userId từ Riverpod
 int _getUserId(WidgetRef ref) {
@@ -346,11 +346,12 @@ final appRouter = GoRouter(
     GoRoute(
       path: AppRoutes.paymentQr,
       builder: (context, state) {
-        final extra = state.extra as Map<String, dynamic>;
-        return QrPaymentScreen(
-          qrUrl: extra['qrUrl'],
-          paymentCode: extra['paymentCode'],
-          totalAmount: extra['totalAmount'],
+        final extra = state.extra as Map<String, dynamic>?;
+        return PaymentQrScreen(
+          purchaseId: extra?['purchaseId'] ?? 0,
+          qrUrl: extra?['qrUrl'] ?? '',
+          paymentCode: extra?['paymentCode'] ?? '',
+          totalAmount: extra?['totalAmount'] ?? 0,
         );
       },
     ),

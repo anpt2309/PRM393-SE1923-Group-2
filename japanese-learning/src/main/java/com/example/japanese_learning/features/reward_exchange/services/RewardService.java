@@ -114,4 +114,18 @@ public class RewardService {
                         .build())
                 .collect(Collectors.toList());
     }
+
+    // Lấy thông tin chi tiết 1 phần thưởng theo ID
+    public RewardResponse getRewardById(Long id) {
+        Reward reward = rewardRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Phần thưởng không tồn tại với ID: " + id));
+
+        return RewardResponse.builder()
+                .id(reward.getId())
+                .name(reward.getName())
+                .cost(reward.getCost())
+                .discountAmount(reward.getDiscountAmount())
+                .description(reward.getDescription())
+                .build();
+    }
 }

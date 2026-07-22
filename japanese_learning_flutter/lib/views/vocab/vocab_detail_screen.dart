@@ -87,7 +87,7 @@ class _VocabDetailScreenState extends ConsumerState<VocabDetailScreen> {
                       ClusterMapWidget(
                         word: word,
                         onPlayWord: () {
-                          VocabSpeechHelper.instance.speakJapanese(word.word, rate: 0.8);
+                          VocabSpeechHelper.instance.speakJapanese(word.word, rate: 1);
                         },
                       ),
                       const SizedBox(height: 16),
@@ -95,7 +95,7 @@ class _VocabDetailScreenState extends ConsumerState<VocabDetailScreen> {
                       ContextExampleCard(
                         word: word,
                         onPlaySentence: () {
-                          VocabSpeechHelper.instance.speakJapanese(word.exampleSentenceJa, rate: 0.8);
+                          VocabSpeechHelper.instance.speakJapanese(word.exampleSentenceJa, rate: 1);
                         },
                       ),
                       const SizedBox(height: 20),

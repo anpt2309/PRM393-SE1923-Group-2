@@ -37,6 +37,10 @@ class PaymentNotifier extends Notifier<PaymentState> {
   void clearPaymentState() {
     state = PaymentState();
   }
+
+  final paymentRepositoryProvider = Provider<PaymentRepository>((ref) {
+    return PaymentRepository();
+  });
 }
 
 final paymentProvider = NotifierProvider<PaymentNotifier, PaymentState>(PaymentNotifier.new);

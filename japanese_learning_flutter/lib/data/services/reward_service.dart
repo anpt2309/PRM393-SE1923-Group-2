@@ -82,4 +82,18 @@ class RewardService {
       'Không thể lấy lịch sử đổi thưởng: ${response.statusCode}',
     );
   }
+
+  // Thêm hàm lấy chi tiết Reward theo ID
+  Future<RewardModel> fetchRewardById(int id) async {
+    final uri = Uri.parse('$baseUrl/api/rewards/$id');
+    final response = await http.get(uri).timeout(const Duration(seconds: 8));
+
+    if (response.statusCode == 200) {
+      final decodedData = json.decode(utf8.decode(response.bodyBytes));
+      if (decodedData is Map<String, dynamic> && decodedData.containsKey('data')) {
+        return RewardModel.fromJson(decodedData['data']);
+      }
+    }
+    throw Exception('Không thể lấy chi tiết voucher: ${response.statusCode}');
+  }
 }

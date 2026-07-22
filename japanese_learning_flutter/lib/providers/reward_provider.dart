@@ -73,6 +73,11 @@ class RewardNotifier extends Notifier<RewardState> {
       return null;
     }
   }
+
+  /// Lấy chi tiết thông tin giảm giá của Voucher theo Reward ID
+  Future<RewardModel?> getRewardDetail(int rewardId) async {
+    return await _repository.getRewardById(rewardId);
+  }
 }
 
 final rewardProvider = NotifierProvider<RewardNotifier, RewardState>(RewardNotifier.new);
